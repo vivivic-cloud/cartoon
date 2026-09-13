@@ -112,6 +112,14 @@
   .icohead:first-child{margin-top:0}
   .danger{background:#fff;color:#dc2626;border:1px solid var(--line)}
   .danger:hover{background:#fef2f2}
+  /* 링크 붙여넣기는 고르기 뒤로 물렸다. 안 될 때 쓰는 자리다. */
+  .lnk{display:block;width:100%;margin-top:8px;padding:6px;background:none;border:0;
+    font:inherit;font-size:11px;font-weight:700;color:var(--muted);text-decoration:underline;
+    cursor:pointer;min-height:32px}
+  .lnk:hover{color:var(--ink)}
+  #dsetup a{color:var(--ink);font-weight:700}
+  #dsetup ol{margin:6px 0 0;padding-left:16px}
+  #dsetup li{margin:4px 0}
 
   /* 붙여 넣은 영감 자료 — 폰에서 세 칸 */
   #dgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:10px}
@@ -171,9 +179,14 @@
       <h2>영감 자료 · 드라이브</h2>
       <div class="chips" id="dboxes"></div>
       <div id="drive">
-        <textarea id="dlink" class="inp" rows="2"
-          placeholder="드라이브 공유 링크를 붙여 넣으세요. 여러 개를 한꺼번에 넣어도 됩니다."></textarea>
-        <button class="btn" id="dadd" style="margin-top:8px">넣기</button>
+        <button class="btn" id="dpick">드라이브에서 고르기</button>
+        <div id="dsetup"></div>
+        <button class="lnk" id="dtoggle">링크로 넣기</button>
+        <div id="dpaste" hidden>
+          <textarea id="dlink" class="inp" rows="2"
+            placeholder="드라이브 공유 링크를 붙여 넣으세요. 여러 개를 한꺼번에 넣어도 됩니다."></textarea>
+          <button class="btn" id="dadd" style="margin-top:8px">넣기</button>
+        </div>
         <div id="dmsg"></div>
       </div>
       <div id="dgrid"></div>
@@ -228,26 +241,23 @@ setInterval(load,3000);
    드라이브 파일은 읽기만 한다. ✕ 는 이 화면 목록에서 빼는 것이고
    드라이브의 파일을 지우는 것이 아니다. 구글로 가는 것은 그림 GET 뿐이다.
 
-   ── 나중에 열쇠를 주시면 켜지는 길 (Picker) ─────────────────────────
-   사장님이 구글 창에서 직접 고르시는 길도 쓸 수 있다. 그때는 아래
-   드라이브설정 을 채우면 '드라이브에서 고르기' 단추가 함께 뜬다.
-   그러려면 구글 클라우드 콘솔에서:
-     1) Google Drive API 와 Google Picker API 를 켠다
-     2) 오아쓰 클라이언트 아이디(웹 애플리케이션)를 만들고, 허용된
-        자바스크립트 출처에 https://vivivic-cloud.github.io 를 넣는다
-     3) API 열쇠를 하나 만든다
-     4) clientId · appId(프로젝트 번호) · apiKey 를 아래에 적는다
-   권한은 drive.file 만 쓴다 — 그 창에서 고른 파일만 보이고 구글 심사도 없다. */
-const 드라이브설정 = { clientId:'', appId:'', apiKey:'' };
+   ── 드라이브에서 고르기 (Picker) ────────────────────────────────────
+   앞세운 길이다. 집이 이미 쓰는 파이어베이스가 곧 구글 클라우드 프로젝트라
+   새로 만들 것이 없다. 파이어베이스 구글 로그인으로 토큰을 받아 피커를 연다.
+     프로젝트 번호(appId) 830175660542 · 프로젝트 vivivic-4b7ef
+   권한은 drive.file 만 쓴다 — 사장님이 그 창에서 고른 파일만 앱에 보이고,
+   구글 심사(restricted scope)도 받지 않는다. drive.readonly 는 쓰지 않는다. */
+const 프로젝트번호='830175660542';
+const 웹열쇠='AIzaSyB9X_hzd2D3goQ7oenK53Pz805P1c7oSqs';
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-app.js";
-import { getAuth, signInAnonymously, onAuthStateChanged }
+import { getAuth, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithPopup }
   from "https://www.gstatic.com/firebasejs/11.2.0/firebase-auth.js";
 import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, getDocs, writeBatch }
   from "https://www.gstatic.com/firebasejs/11.2.0/firebase-firestore.js";
 
 const app = initializeApp({
-  apiKey: "AIzaSyB9X_hzd2D3goQ7oenK53Pz805P1c7oSqs",
+  apiKey: 웹열쇠,
   authDomain: "vivivic-4b7ef.firebaseapp.com",
   projectId: "vivivic-4b7ef",
   storageBucket: "vivivic-4b7ef.firebasestorage.app",
@@ -261,7 +271,11 @@ const 칸 = (이름, id) => id ? doc(db, ...뿌리, 이름, id) : collection(db,
 const drive=document.getElementById('drive'), dgrid=document.getElementById('dgrid'),
       dmsg=document.getElementById('dmsg'), dstate=document.getElementById('dstate'),
       dlink=document.getElementById('dlink'), dadd=document.getElementById('dadd'),
+      dpick=document.getElementById('dpick'), dsetup=document.getElementById('dsetup'),
+      dtoggle=document.getElementById('dtoggle'), dpaste=document.getElementById('dpaste'),
       view2=document.getElementById('view'), list2=document.getElementById('list');
+
+dtoggle.onclick=()=>{dpaste.hidden=!dpaste.hidden;dtoggle.textContent=dpaste.hidden?'링크로 넣기':'링크 넣는 칸 접기'};
 
 const dboxes=document.getElementById('dboxes'), sheet=document.getElementById('sheet'),
       sheetcard=document.getElementById('sheetcard'), fab=document.getElementById('fab');
@@ -320,13 +334,38 @@ function 아이디뽑기(글){
 const 그림주소=(id,폭)=>`https://drive.google.com/thumbnail?id=${id}&sz=w${폭}`;
 const 원본주소=id=>`https://drive.google.com/file/d/${id}/view`;
 
+/* 드라이브 자격. 고르기로 로그인하면 채워진다. 붙여넣기 길은 이것 없이도 된다. */
+let 토큰=null;
+/* 링크 공개가 아닌 그림(고르기로 담은 것)은 위 주소로는 안 뜬다.
+   자격이 있으면 그것으로 받아 온다. 받아 오기만 한다 — GET 뿐이다. */
+async function 토큰그림(id){
+  const r=await fetch(`https://www.googleapis.com/drive/v3/files/${id}?alt=media`,
+    {headers:{Authorization:'Bearer '+토큰}});
+  if(!r.ok) throw new Error('구글이 '+r.status+' 로 답했습니다');
+  return URL.createObjectURL(await r.blob());
+}
+// 먼저 공개 주소로 걸어 보고, 안 되면 자격으로 다시 받는다. 그래도 안 되면 까닭을 적는다.
+function 그림걸기(img,id,폭,실패했을때){
+  let 다시썼다=false;
+  img.onerror=async()=>{
+    if(다시썼다||!토큰) return 실패했을때();
+    다시썼다=true;
+    try{ img.src=await 토큰그림(id); }catch(e){ 실패했을때(); }
+  };
+  img.src=그림주소(id,폭);
+}
+
 /* 큰 자리에 띄운다. 원래 그림 보기와 같은 자리를 쓴다. */
 function 띄우기(id,타일){
   window.카툰비우기 && window.카툰비우기();
   view2.innerHTML='';
   const 통=document.createElement('div');
   통.style.cssText='display:flex;flex-direction:column;align-items:center;max-width:100%;max-height:100%;min-height:0';
-  const img=new Image();img.src=그림주소(id,1600);img.alt=id;img.style.minHeight='0';통.appendChild(img);
+  const img=new Image();img.alt=id;img.style.minHeight='0';통.appendChild(img);
+  그림걸기(img,id,1600,()=>{img.remove();
+    const p=document.createElement('p');p.className='note';
+    p.textContent='이 그림을 불러오지 못했습니다 — 링크 공개가 아니면 드라이브에서 「링크가 있는 모든 사용자」로 바꾸거나, 「드라이브에서 고르기」로 다시 담아 주세요';
+    통.insertBefore(p,통.firstChild);});
   // 틀(iframe) 안에 넣지 않는다 — 원본은 새 창으로 연다. 집 규칙이다.
   const a=document.createElement('a');
   a.className='open';a.href=원본주소(id);a.target='_blank';a.rel='noopener noreferrer';
@@ -439,17 +478,16 @@ function 타일(id,box){
   d.innerHTML=`<button class="pick"><img alt="" loading="lazy"></button>
     <button class="bx"></button><button class="x" aria-label="목록에서 빼기">✕</button>`;
   const img=d.querySelector('img');
-  img.src=그림주소(id,400);
   const bxb=d.querySelector('.bx');
   bxb.textContent=box?박스이름(box):'갈래 없음';
   bxb.onclick=e=>{e.stopPropagation();옮기기판(id)};
   // 안 뜨면 조용히 넘어가지 않는다. 깨진 그림만 덜렁 두지 않는다.
-  img.onerror=()=>{
+  그림걸기(img,id,400,()=>{
     if(d.querySelector('.shut'))return;
     const s=document.createElement('div');s.className='shut';
-    s.textContent='이 링크는 아직 공개가 아닙니다 — 드라이브에서 ‘링크가 있는 모든 사용자’로 바꿔 주세요';
+    s.textContent='이 링크는 아직 공개가 아닙니다 — 드라이브에서 ‘링크가 있는 모든 사용자’로 바꾸거나 「드라이브에서 고르기」로 담아 주세요';
     d.appendChild(s);
-  };
+  });
   d.querySelector('.pick').onclick=()=>띄우기(id,d);
   d.querySelector('.x').onclick=async e=>{
     e.stopPropagation();
@@ -487,55 +525,83 @@ async function 넣기(){
 }
 dadd.onclick=넣기;
 
-/* ── 길 2. 사장님이 구글 창에서 직접 고르는 길 (Picker) ──────────────
-   지금은 잠들어 있다. 위 드라이브설정 에 clientId·appId·apiKey 를 채우면
-   '드라이브에서 고르기' 단추가 함께 뜬다. 고른 것도 같은 칸에 담기므로
-   붙여넣기로 넣은 것과 똑같이 다른 기기에 따라온다. */
-function 고르기붙이기(){
-  const b=document.createElement('button');
-  b.className='btn';b.style.marginTop='8px';b.textContent='드라이브에서 고르기';
-  drive.insertBefore(b,dmsg);
+/* ── 드라이브에서 고르기 ─────────────────────────────────────────────
+   파이어베이스 구글 로그인으로 토큰을 받아(집이 이미 쓰는 그 프로젝트),
+   그 토큰으로 구글 피커를 연다. 고른 것은 붙여넣기와 똑같이 cartoon_refs 에
+   담기므로 박스도 다른 기기 따라오기도 그대로 된다. */
+const 실어=주소=>new Promise((성공,실패)=>{
+  const s=document.createElement('script');s.src=주소;s.onload=성공;
+  s.onerror=()=>실패(new Error('구글 스크립트를 불러오지 못했습니다 — ' + 주소));
+  document.head.appendChild(s);});
 
-  const 실어=주소=>new Promise((성공,실패)=>{
-    const s=document.createElement('script');s.src=주소;s.onload=성공;
-    s.onerror=()=>실패(new Error('구글 스크립트를 불러오지 못했습니다'));
-    document.head.appendChild(s);});
+dpick.onclick=async()=>{
+  dpick.disabled=true;dpick.textContent='드라이브 여는 중…';
+  try{
+    if(!토큰){
+      const p=new GoogleAuthProvider();
+      p.addScope('https://www.googleapis.com/auth/drive.file');   // 고른 파일만, 읽기용
+      // 창을 새로 띄워 로그인한다. 틀(iframe) 안에 넣지 않는다 — 집 규칙이다.
+      const r=await signInWithPopup(auth,p);
+      토큰=(GoogleAuthProvider.credentialFromResult(r)||{}).accessToken||null;
+      if(!토큰) throw new Error('구글이 드라이브 자격을 주지 않았습니다');
+    }
+    if(!window.gapi) await 실어('https://apis.google.com/js/api.js');
+    await new Promise(r=>gapi.load('picker',r));
+    const 보기=new google.picker.DocsView(google.picker.ViewId.DOCS_IMAGES)
+      .setIncludeFolders(true).setSelectFolderEnabled(false);
+    new google.picker.PickerBuilder()
+      .setOAuthToken(토큰).setDeveloperKey(웹열쇠).setAppId(프로젝트번호)
+      .addView(보기).enableFeature(google.picker.Feature.MULTISELECT_ENABLED)
+      .setCallback(async d=>{
+        if(d[google.picker.Response.ACTION]!==google.picker.Action.PICKED)return;
+        const 것들=d[google.picker.Response.DOCUMENTS]||[];
+        const 때=Date.now();
+        try{
+          await Promise.all(것들.map((x,i)=>setDoc(칸('cartoon_refs',x.id),{id:x.id,at:때+i,box:골른박스},{merge:true})));
+          알림(것들.length+'장 넣었습니다'+(골른박스?' · '+박스이름(골른박스):''));
+        }catch(e){ 알림('넣지 못했습니다 — '+(e.code||e.message),true); }
+      }).build().setVisible(true);
+  }catch(e){
+    const c=e.code||'';
+    if(c==='auth/operation-not-allowed'||c==='auth/unauthorized-domain') 켜는법(c);
+    else if(c==='auth/popup-closed-by-user'||c==='auth/cancelled-popup-request') 알림('');
+    else 알림(e.message||'드라이브를 열지 못했습니다',true);
+  }finally{ dpick.disabled=false;dpick.textContent='드라이브에서 고르기'; }
+};
 
-  let 토큰=null;
-  b.onclick=async()=>{
-    b.disabled=true;b.textContent='구글 여는 중…';
-    try{
-      if(!window.google?.accounts?.oauth2) await 실어('https://accounts.google.com/gsi/client');
-      if(!window.gapi) await 실어('https://apis.google.com/js/api.js');
-      await new Promise(r=>gapi.load('picker',r));
-      if(!토큰) 토큰=await new Promise((성공,실패)=>{
-        // 창을 새로 띄워 로그인한다. 틀(iframe) 안에 넣지 않는다 — 집 규칙이다.
-        google.accounts.oauth2.initTokenClient({
-          client_id:드라이브설정.clientId,
-          scope:'https://www.googleapis.com/auth/drive.file',   // 고른 파일만, 읽기용
-          callback:r=>r.access_token?성공(r.access_token):실패(new Error(r.error||'로그인이 취소되었습니다')),
-          error_callback:e=>실패(new Error(e.type||'로그인이 막혔습니다'))
-        }).requestAccessToken();
-      });
-      const 보기=new google.picker.DocsView(google.picker.ViewId.DOCS_IMAGES)
-        .setIncludeFolders(true).setSelectFolderEnabled(false);
-      new google.picker.PickerBuilder()
-        .setOAuthToken(토큰).setDeveloperKey(드라이브설정.apiKey).setAppId(드라이브설정.appId)
-        .addView(보기).enableFeature(google.picker.Feature.MULTISELECT_ENABLED)
-        .setCallback(async d=>{
-          if(d[google.picker.Response.ACTION]!==google.picker.Action.PICKED)return;
-          const 것들=d[google.picker.Response.DOCUMENTS]||[];
-          const 때=Date.now();
-          try{
-            await Promise.all(것들.map((x,i)=>setDoc(칸('cartoon_refs',x.id),{id:x.id,at:때+i,box:골른박스},{merge:true})));
-            알림(것들.length+'장 넣었습니다');
-          }catch(e){ 알림('넣지 못했습니다 — '+(e.code||e.message),true); }
-        }).build().setVisible(true);
-    }catch(e){ 알림(e.message||'드라이브를 열지 못했습니다',true); }
-    finally{ b.disabled=false;b.textContent='드라이브에서 고르기'; }
-  };
+/* 켜기 전에는 무엇을 켜야 하는지 짧게만 띄운다. 누르면 그 화면이 바로 열린다. */
+const 콘솔={
+  로그인:'https://console.firebase.google.com/project/vivivic-4b7ef/authentication/providers',
+  도메인:'https://console.firebase.google.com/project/vivivic-4b7ef/authentication/settings',
+  드라이브API:'https://console.cloud.google.com/apis/library/drive.googleapis.com?project=vivivic-4b7ef',
+  피커API:'https://console.cloud.google.com/apis/library/picker.googleapis.com?project=vivivic-4b7ef',
+  열쇠:'https://console.cloud.google.com/apis/credentials?project=vivivic-4b7ef',
+};
+const 고리=(u,글)=>`<a href="${u}" target="_blank" rel="noopener noreferrer">${글}</a>`;
+function 켜는법(){
+  dsetup.innerHTML=`<div class="warn bad" style="margin-top:8px">드라이브 고르기를 켜려면 —
+    <ol>
+      <li>${고리(콘솔.로그인,'구글 로그인 켜기')}</li>
+      <li>${고리(콘솔.도메인,'승인된 도메인에 vivivic-cloud.github.io 넣기')}</li>
+      <li>${고리(콘솔.드라이브API,'Drive API')} · ${고리(콘솔.피커API,'Picker API')} 켜고,
+          ${고리(콘솔.열쇠,'열쇠')}에서 이 둘을 풀기</li>
+    </ol></div>`;
 }
-if(드라이브설정.clientId && 드라이브설정.apiKey) 고르기붙이기();
+
+/* 켜져 있는지 미리 물어본다 — 구글에 그냥 물으면 알려 준다. 열쇠는 안 쓴다. */
+(async()=>{
+  try{
+    const [d,a]=await Promise.all([
+      fetch(`https://identitytoolkit.googleapis.com/v1/projects?key=${웹열쇠}`).then(r=>r.json()),
+      fetch(`https://identitytoolkit.googleapis.com/v1/accounts:createAuthUri?key=${웹열쇠}`,
+        {method:'POST',headers:{'Content-Type':'application/json'},
+         body:JSON.stringify({providerId:'google.com',continueUri:location.origin+'/'})}).then(r=>r.json())
+    ]);
+    const 도메인됨=(d.authorizedDomains||[]).includes(location.hostname);
+    const 로그인됨=!(a.error&&/OPERATION_NOT_ALLOWED/.test(a.error.message||''));
+    if(!도메인됨||!로그인됨) 켜는법();
+  }catch(e){ /* 물어보지 못했으면 조용히 둔다. 눌러 보면 그때 알려 준다. */ }
+})();
 
 /* ── 익명으로 들어가고, 담긴 것을 따라온다 (집이 하는 그대로) ───────── */
 fab.innerHTML=ico('plus',26)||'＋';
