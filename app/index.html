@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>카툰</title>
+<style>
+  :root{--bg:#e9e5df;--ink:#1a1a1a;--line:#c9c3ba}
+  *{box-sizing:border-box}
+  body{margin:0;height:100vh;display:flex;background:var(--bg);color:var(--ink);font:14px/1.5 -apple-system,"Apple SD Gothic Neo",sans-serif}
+  aside{width:260px;border-right:1px solid var(--line);overflow:auto;padding:12px 0}
+  aside h1{font-size:13px;font-weight:600;letter-spacing:.1em;margin:0 16px 10px}
+  aside button{display:block;width:100%;text-align:left;background:none;border:0;padding:8px 16px;cursor:pointer;color:inherit;font:inherit;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  aside button:hover{background:rgba(0,0,0,.05)}
+  aside button.on{background:var(--ink);color:var(--bg)}
+  main{flex:1;display:flex;align-items:center;justify-content:center;padding:32px}
+  main img{max-width:100%;max-height:100%;box-shadow:0 2px 24px rgba(0,0,0,.12);background:#fff}
+  main .empty{color:#888}
+</style>
+</head>
+<body>
+<aside><h1>카툰</h1><div id="list"></div></aside>
+<main id="view"><span class="empty">이미지를 선택하세요</span></main>
+<script>
+const list=document.getElementById('list'),view=document.getElementById('view');
+let cur=null,prev='';
+function show(f){
+  cur=f;
+  view.innerHTML='';
+  const img=new Image();img.src=encodeURIComponent(f);img.alt=f;view.appendChild(img);
+  [...list.children].forEach(b=>b.classList.toggle('on',b.dataset.f===f));
+}
+async function load(){
+  let files;
+  try{files=await (await fetch('/api/list')).json();}catch(e){files=await (await fetch('images.json')).json();}
+  const key=files.join('\n');if(key===prev)return;prev=key;
+  list.innerHTML='';
+  files.forEach(f=>{const b=document.createElement('button');b.textContent=f;b.dataset.f=f;b.onclick=()=>show(f);list.appendChild(b)});
+  if(cur&&files.includes(cur))show(cur);
+}
+load();
+setInterval(load,3000);
+</script>
+</body>
+</html>
