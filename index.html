@@ -2,24 +2,138 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>카툰</title>
 <style>
-  :root{--bg:#e9e5df;--ink:#1a1a1a;--line:#c9c3ba}
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap');
+  /* 빛깔·모서리·글자는 조혼가구/에이엠티 화면에서 그대로 가져왔다. 새로 지어낸 값은 없다. */
+  :root{
+    --fluid-h1:clamp(1.5rem,5vw,2.25rem);
+    --fluid-h2:clamp(1.125rem,4vw,1.5rem);
+    --fluid-body:clamp(0.875rem,2.5vw,1.05rem);
+    --fluid-small:clamp(0.75rem,2vw,0.875rem);
+    --fluid-mini:clamp(0.65rem,1.5vw,0.75rem);
+    --ink:#37352f; --bg:#ffffff; --line:#ededeb; --line2:#e3e2e0;
+    --muted:#787774; --faint:#b0aeaa; --soft:#f7f6f3; --soft2:#f1f1ef; --hover:#fbfbfa;
+  }
   *{box-sizing:border-box}
-  body{margin:0;height:100vh;display:flex;background:var(--bg);color:var(--ink);font:14px/1.5 -apple-system,"Apple SD Gothic Neo",sans-serif}
-  aside{width:260px;border-right:1px solid var(--line);overflow:auto;padding:12px 0}
-  aside h1{font-size:13px;font-weight:600;letter-spacing:.1em;margin:0 16px 10px}
-  aside button{display:block;width:100%;text-align:left;background:none;border:0;padding:8px 16px;cursor:pointer;color:inherit;font:inherit;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  aside button:hover{background:rgba(0,0,0,.05)}
-  aside button.on{background:var(--ink);color:var(--bg)}
-  main{flex:1;display:flex;align-items:center;justify-content:center;padding:32px}
-  main img{max-width:100%;max-height:100%;box-shadow:0 2px 24px rgba(0,0,0,.12);background:#fff}
-  main .empty{color:#888}
+  body{
+    margin:0;min-height:100vh;display:flex;flex-direction:column;
+    background:var(--bg);color:var(--ink);
+    font-family:'Inter',-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+    font-size:var(--fluid-body);-webkit-font-smoothing:antialiased;
+  }
+  .custom-scrollbar::-webkit-scrollbar{width:4px;height:4px}
+  .custom-scrollbar::-webkit-scrollbar-track{background:transparent}
+  .custom-scrollbar::-webkit-scrollbar-thumb{background:#d3d1cb;border-radius:10px}
+
+  /* 머리띠 — 집 화면과 같은 흰 바탕에 아래 한 줄 */
+  header{background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:100}
+  .hd{max-width:1152px;margin:0 auto;padding:0 16px;height:56px;display:flex;align-items:center;
+      justify-content:space-between;gap:12px}
+  .hd-l{display:flex;align-items:center;gap:8px;min-width:0}
+  .logo{font-weight:900;font-size:20px;letter-spacing:-.05em;color:var(--ink)}
+  .badge{font-size:9px;font-weight:700;color:var(--faint);background:#f1f0ef;padding:1px 6px;
+         border-radius:4px;letter-spacing:.04em;font-family:ui-monospace,monospace}
+
+  .wrap{flex:1;display:flex;min-height:0}
+  aside{width:280px;flex:none;border-right:1px solid var(--line);overflow:auto;padding:12px 0 24px}
+  .grp{padding:0 12px 14px}
+  .grp+.grp{border-top:1px solid var(--line);padding-top:14px}
+  .grp h2{font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--muted);
+          margin:0 0 8px;padding:0 4px;text-transform:uppercase}
+
+  /* 목록 단추 — 집의 nav-link 를 따랐다 */
+  #list button{display:block;width:100%;text-align:left;background:none;border:0;
+    padding:8px 12px;border-radius:8px;cursor:pointer;color:var(--muted);
+    font:inherit;font-size:13px;font-weight:600;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:all .2s}
+  #list button:hover{background:var(--hover);color:var(--ink)}
+  #list button.on{background:var(--soft2);color:var(--ink);box-shadow:inset 0 0 0 1px var(--line)}
+
+  main{flex:1;display:flex;align-items:center;justify-content:center;padding:24px;min-width:0;
+       background:var(--hover)}
+  main img{max-width:100%;max-height:100%;border-radius:10px;border:1px solid var(--line);
+           background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+  main .empty{color:var(--faint);font-size:var(--fluid-small);font-weight:600}
+
+  /* 카드·단추·입력칸 — 집의 notion-card / notion-input 값 그대로 */
+  .card{border:1px solid var(--line);border-radius:10px;background:#fff;padding:12px}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;width:100%;
+    padding:10px 12px;background:var(--ink);color:#fff;font:inherit;font-size:13px;font-weight:700;
+    border:0;border-radius:8px;cursor:pointer;transition:all .2s}
+  .btn:hover{background:#000}
+  .btn:active{transform:scale(.95)}
+  .btn[disabled]{background:#d3d1cb;cursor:not-allowed;transform:none}
+  .btn-sub{background:var(--soft);color:var(--muted);border:1px solid var(--line);font-size:11px;
+    padding:6px 12px;border-radius:6px;width:auto}
+  .btn-sub:hover{background:#efefec;color:var(--ink)}
+  .inp{appearance:none;background:#fff;border:1px solid var(--line);border-radius:6px;
+    padding:8px 12px;font:inherit;font-size:var(--fluid-small);width:100%;transition:all .2s}
+  .inp:focus{outline:none;border-color:var(--ink);background:var(--hover)}
+
+  .note{font-size:11px;line-height:1.5;color:var(--muted);font-weight:600}
+  .note b{color:var(--ink)}
+  .note ol{margin:6px 0 0;padding-left:16px}
+  .note li{margin:3px 0}
+  .warn{background:#f7f6f3;border:1px solid var(--line);border-radius:6px;padding:8px 10px;
+        font-size:11px;font-weight:700;color:var(--ink);line-height:1.45}
+  .bad{background:#fef2f2;border-color:#fecaca;color:#dc2626}
+  .code{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,monospace;font-size:10px;
+        background:var(--soft2);border:1px solid var(--line);border-radius:3px;padding:1px 4px;
+        font-weight:600;word-break:break-all}
+
+  /* 드라이브에서 불러온 영감 자료 — 폰에서는 두 칸, 넓으면 세 칸 */
+  #dgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-top:10px}
+  #dgrid:empty{display:none}
+  .thumb{position:relative;aspect-ratio:1;border:1px solid var(--line);border-radius:8px;
+    overflow:hidden;background:var(--soft);cursor:pointer;padding:0;transition:all .2s}
+  .thumb:hover{border-color:var(--faint)}
+  .thumb.on{box-shadow:inset 0 0 0 2px var(--ink);border-color:var(--ink)}
+  .thumb img{width:100%;height:100%;object-fit:cover;display:block}
+  .thumb .nm{position:absolute;left:0;right:0;bottom:0;padding:3px 5px;font-size:9px;font-weight:700;
+    color:#fff;background:linear-gradient(transparent,rgba(55,53,47,.82));text-align:left;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .open{display:inline-block;margin-top:8px;font-size:10px;font-weight:700;color:var(--muted);
+        text-decoration:underline}
+  .open:hover{color:var(--ink)}
+
+  /* 폰(375px) — 옆으로 나란히 두면 그림 자리가 115px 밖에 안 남는다. 위아래로 쌓는다. */
+  @media (max-width:640px){
+    .wrap{flex-direction:column}
+    aside{width:100%;border-right:0;border-bottom:1px solid var(--line);max-height:52vh}
+    /* 드라이브가 아직 안 붙었을 때는 사장님이 하실 일이 적힌 안내가 길다.
+       52vh 로 자르면 '길 2' 가 접혀 안 보인다. 그때만 자르지 않는다. */
+    body.setup aside{max-height:none}
+    main{padding:16px;min-height:38vh}
+    #dgrid{grid-template-columns:repeat(3,1fr)}
+  }
+  @media (min-width:1024px){ #dgrid{grid-template-columns:repeat(3,1fr)} }
 </style>
 </head>
 <body>
-<aside><h1>카툰</h1><div id="list"></div></aside>
-<main id="view"><span class="empty">이미지를 선택하세요</span></main>
+<header>
+  <div class="hd">
+    <div class="hd-l"><div class="logo">VIVIVIC</div><span class="badge">카툰</span></div>
+    <span id="dstate" class="badge"></span>
+  </div>
+</header>
+
+<div class="wrap">
+  <aside class="custom-scrollbar">
+    <div class="grp">
+      <h2>이 폴더</h2>
+      <div id="list"></div>
+    </div>
+    <div class="grp">
+      <h2>영감 자료 · 드라이브</h2>
+      <div id="drive"></div>
+      <div id="dgrid"></div>
+    </div>
+  </aside>
+  <main id="view"><span class="empty">이미지를 선택하세요</span></main>
+</div>
+
 <script>
 const list=document.getElementById('list'),view=document.getElementById('view');
 let cur=null,prev='';
@@ -28,6 +142,8 @@ function show(f){
   view.innerHTML='';
   const img=new Image();img.src=encodeURIComponent(f);img.alt=f;view.appendChild(img);
   [...list.children].forEach(b=>b.classList.toggle('on',b.dataset.f===f));
+  const g=document.getElementById('dgrid');
+  if(g)[...g.children].forEach(b=>b.classList.remove('on'));
 }
 async function load(){
   let files;
@@ -39,6 +155,179 @@ async function load(){
 }
 load();
 setInterval(load,3000);
+</script>
+
+<script>
+/* ── 영감 자료를 구글 드라이브에서 불러오는 자리 ───────────────────────────
+   이 화면은 깃허브 페이지스에 얹힌 정적 화면이라 서버가 없다. 그래서 브라우저가
+   구글에 바로 물어야 하고, 그러려면 구글 쪽에 열쇠를 먼저 만들어 두어야 한다.
+   아래 칸이 비어 있는 동안에는 드라이브에 닿지 못한다 — 가짜 목록을 만들지 않고
+   무엇이 없어서 못 닿는지 화면에 그대로 적는다.
+
+   드라이브 파일은 읽기만 한다. 이 아래 어디에도 옮기기·이름바꾸기·지우기는 없다.
+   구글에 보내는 것은 GET 뿐이다. */
+const 드라이브설정 = {
+  방식: '',        // '고르기' 또는 '공개폴더'. 비어 있으면 아직 붙지 않은 것이다.
+  clientId: '',    // '고르기' — 오아쓰 클라이언트 아이디 (웹 애플리케이션)
+  appId: '',       // '고르기' — 구글 클라우드 프로젝트 번호
+  apiKey: '',      // 둘 다 — 브라우저용 API 열쇠
+  폴더: ''         // '공개폴더' — 링크로 공개해 둔 폴더의 아이디
+};
+
+const drive=document.getElementById('drive'), dgrid=document.getElementById('dgrid'),
+      dstate=document.getElementById('dstate');
+let 토큰=null;
+
+const 알림=(글,나쁨)=>{drive.querySelectorAll('.msg').forEach(e=>e.remove());
+  const d=document.createElement('div');d.className='warn msg'+(나쁨?' bad':'');
+  d.style.marginTop='8px';d.textContent=글;drive.appendChild(d);};
+const 상태=t=>{dstate.textContent=t};
+
+/* 고른 그림을 큰 자리에 띄운다. 원래 그림 보기와 같은 자리를 쓴다. */
+function 띄우기(src,이름,링크,버튼){
+  cur=null;
+  view.innerHTML='';
+  const 통=document.createElement('div');
+  통.style.cssText='display:flex;flex-direction:column;align-items:center;max-width:100%;max-height:100%;min-height:0';
+  const img=new Image();img.src=src;img.alt=이름;img.style.minHeight='0';통.appendChild(img);
+  // 틀(iframe) 안에 넣지 않는다 — 원본은 새 창으로 연다. 집 규칙이다.
+  const a=document.createElement('a');
+  a.className='open';a.href=링크;a.target='_blank';a.rel='noopener noreferrer';
+  a.textContent='드라이브에서 열기';통.appendChild(a);
+  view.appendChild(통);
+  [...list.children].forEach(b=>b.classList.remove('on'));
+  [...dgrid.children].forEach(b=>b.classList.toggle('on',b===버튼));
+}
+
+function 칸(이름,썸네일,열기,본그림){
+  const b=document.createElement('button');
+  b.className='thumb';b.title=이름;
+  b.innerHTML=`<img alt="" loading="lazy"><span class="nm"></span>`;
+  b.querySelector('img').src=썸네일;
+  b.querySelector('.nm').textContent=이름;
+  b.onclick=async()=>{
+    try{ 띄우기(await 본그림(),이름,열기,b); }
+    catch(e){ 알림('그림을 불러오지 못했습니다 — '+(e.message||e),true); }
+  };
+  dgrid.appendChild(b);
+  return b;
+}
+
+/* ── 길 1. 사장님이 구글 창에서 직접 고르는 길 (Picker) ─────────────────
+   드라이브 전체를 넘겨받지 않는다. 사장님이 고른 그림만 보인다. */
+function 고르기붙이기(){
+  drive.innerHTML=`<button class="btn" id="dpick">드라이브에서 고르기</button>
+    <div class="note" style="margin-top:8px">사장님이 고른 그림만 불러옵니다. 읽기만 합니다.</div>`;
+  상태('드라이브 · 준비됨');
+  document.getElementById('dpick').onclick=열기;
+
+  function 실어(주소){return new Promise((성공,실패)=>{
+    const s=document.createElement('script');s.src=주소;s.onload=성공;
+    s.onerror=()=>실패(new Error('구글 스크립트를 불러오지 못했습니다: '+주소));
+    document.head.appendChild(s);});}
+
+  async function 열기(){
+    const btn=document.getElementById('dpick');
+    btn.disabled=true;btn.textContent='구글 여는 중…';
+    try{
+      if(!window.google?.accounts?.oauth2) await 실어('https://accounts.google.com/gsi/client');
+      if(!window.gapi) await 실어('https://apis.google.com/js/api.js');
+      await new Promise(r=>gapi.load('picker',r));
+      if(!토큰) 토큰=await new Promise((성공,실패)=>{
+        // 창을 새로 띄워 로그인한다. 틀(iframe) 안에 넣지 않는다 — 집 규칙이다.
+        google.accounts.oauth2.initTokenClient({
+          client_id:드라이브설정.clientId,
+          scope:'https://www.googleapis.com/auth/drive.file',   // 고른 파일만, 읽기용
+          callback:r=>r.access_token?성공(r.access_token):실패(new Error(r.error||'로그인이 취소되었습니다')),
+          error_callback:e=>실패(new Error(e.type||'로그인이 막혔습니다'))
+        }).requestAccessToken();
+      });
+      const 보기=new google.picker.DocsView(google.picker.ViewId.DOCS_IMAGES)
+        .setIncludeFolders(true).setSelectFolderEnabled(false);
+      new google.picker.PickerBuilder()
+        .setOAuthToken(토큰).setDeveloperKey(드라이브설정.apiKey).setAppId(드라이브설정.appId)
+        .addView(보기).enableFeature(google.picker.Feature.MULTISELECT_ENABLED)
+        .setCallback(d=>{
+          if(d[google.picker.Response.ACTION]!==google.picker.Action.PICKED)return;
+          받기(d[google.picker.Response.DOCUMENTS]||[]);
+        }).build().setVisible(true);
+    }catch(e){
+      알림((e.message||'드라이브를 열지 못했습니다'),true);
+    }finally{ btn.disabled=false;btn.textContent='드라이브에서 고르기'; }
+  }
+
+  function 받기(문서들){
+    dgrid.innerHTML='';
+    문서들.forEach(d=>{
+      const 열기주소='https://drive.google.com/file/d/'+d.id+'/view';
+      // 썸네일도 본그림도 자격을 붙여 GET 으로만 받는다.
+      const 받아오기=async()=>{
+        const r=await fetch(`https://www.googleapis.com/drive/v3/files/${d.id}?alt=media`,
+          {headers:{Authorization:'Bearer '+토큰}});
+        if(!r.ok) throw new Error('구글이 '+r.status+' 로 답했습니다');
+        return URL.createObjectURL(await r.blob());
+      };
+      const b=칸(d.name||d.id,d.iconUrl||'',열기주소,받아오기);
+      받아오기().then(u=>{b.querySelector('img').src=u}).catch(()=>{});
+    });
+    상태('드라이브 · '+문서들.length+'장');
+    알림(문서들.length+'장 불러왔습니다');
+  }
+}
+
+/* ── 길 2. 링크로 공개해 둔 폴더를 열쇠로 읽는 길 ───────────────────── */
+async function 공개폴더붙이기(){
+  drive.innerHTML=`<div class="note">공개 폴더에서 읽는 중…</div>`;
+  상태('드라이브 · 읽는 중');
+  try{
+    const q=encodeURIComponent(`'${드라이브설정.폴더}' in parents and mimeType contains 'image/' and trashed=false`);
+    const r=await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}`
+      +`&key=${드라이브설정.apiKey}&fields=files(id,name)&pageSize=100`);
+    if(!r.ok) throw new Error('구글이 '+r.status+' 로 답했습니다');
+    const 것들=(await r.json()).files||[];
+    drive.innerHTML=`<div class="note">링크로 공개해 둔 폴더입니다. 읽기만 합니다.</div>`;
+    dgrid.innerHTML='';
+    것들.forEach(f=>칸(f.name,`https://drive.google.com/thumbnail?id=${f.id}&sz=w400`,
+      `https://drive.google.com/file/d/${f.id}/view`,
+      async()=>`https://drive.google.com/thumbnail?id=${f.id}&sz=w1600`));
+    상태('드라이브 · '+것들.length+'장');
+    if(!것들.length) 알림('폴더는 열렸는데 그림이 한 장도 없습니다');
+  }catch(e){
+    상태('드라이브 · 못 닿음');
+    drive.innerHTML='';
+    알림('공개 폴더를 읽지 못했습니다 — '+(e.message||e),true);
+  }
+}
+
+/* ── 아직 붙지 않았을 때. 무엇이 없어서 못 닿는지 그대로 적는다. ───────── */
+function 아직(){
+  상태('드라이브 · 안 붙음');
+  document.body.classList.add('setup');
+  drive.innerHTML=`
+    <div class="warn bad">아직 드라이브에 닿지 못합니다. 사장님이 구글 쪽에 열쇠를 만들어 주셔야 합니다.</div>
+    <div class="note" style="margin-top:8px">
+      <b>길 1 — 사장님이 창에서 직접 고르기</b> (권합니다. 드라이브 전체를 넘기지 않습니다)
+      <ol>
+        <li>구글 클라우드 콘솔에서 <b>Google Drive API</b> 와 <b>Google Picker API</b> 를 켠다</li>
+        <li><b>오아쓰 클라이언트 아이디</b>(웹 애플리케이션)를 만들고, 허용된 자바스크립트 출처에
+            <span class="code">https://vivivic-cloud.github.io</span> 를 넣는다</li>
+        <li><b>API 열쇠</b>를 하나 만든다</li>
+        <li>클라이언트 아이디 · 프로젝트 번호 · 열쇠 이 셋을 알려 주시면 제가 넣습니다</li>
+      </ol>
+      <div style="margin-top:6px">쓰는 권한은 <span class="code">drive.file</span> — 사장님이 그 창에서
+        고른 파일만 보입니다. 구글 심사도 필요 없습니다.</div>
+      <div style="margin-top:10px"><b>길 2 — 폴더를 링크 공개로 돌리기</b> (로그인 없이 바로 뜹니다)</div>
+      <ol>
+        <li>영감 자료 폴더를 <b>링크가 있는 모든 사용자 · 뷰어</b> 로 바꾼다</li>
+        <li>그 <b>폴더 아이디</b>와 <b>API 열쇠</b>를 알려 주신다</li>
+      </ol>
+      <div style="margin-top:6px">대신 링크를 아는 사람은 누구나 그 폴더를 볼 수 있게 됩니다.</div>
+    </div>`;
+}
+
+if(드라이브설정.방식==='고르기' && 드라이브설정.clientId && 드라이브설정.apiKey) 고르기붙이기();
+else if(드라이브설정.방식==='공개폴더' && 드라이브설정.폴더 && 드라이브설정.apiKey) 공개폴더붙이기();
+else 아직();
 </script>
 </body>
 <!-- 바이글 손잡이 — 주소에 ?viggle=1 이 있을 때만 켜진다 -->
