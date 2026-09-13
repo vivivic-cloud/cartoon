@@ -74,6 +74,45 @@
         font-size:11px;font-weight:700;color:var(--ink);line-height:1.45;margin-top:8px}
   .bad{background:#fef2f2;border-color:#fecaca;color:#dc2626}
 
+  /* ── 박스 (영감 자료 갈래) — 작업대의 새 박스를 본떴다.
+     생김새 값은 집(조혼가구/에이엠티) 것을 쓴다: 모서리 6·8px, 빛깔 #37352f/#ededeb. */
+  .chips{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 8px}
+  .chip{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);background:#fff;
+    border-radius:999px;padding:7px 12px;font:inherit;font-size:12px;font-weight:700;
+    color:var(--muted);cursor:pointer;min-height:32px;transition:all .2s}
+  .chip:hover{background:var(--hover);color:var(--ink)}
+  .chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .chip.newbox{border-style:dashed;color:var(--faint)}
+  .chip svg{display:block}
+
+  /* 바닥에 늘 떠 있는 박스추가 단추 — 작업대와 같은 자리·같은 크기 */
+  .fab{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom));z-index:50;
+    width:56px;height:56px;border-radius:50%;background:var(--ink);color:#fff;border:0;
+    display:grid;place-items:center;cursor:pointer;box-shadow:0 6px 20px rgba(55,53,47,.26)}
+  .fab:active{transform:scale(.94)}
+  .sheet.on ~ .fab{display:none}
+
+  /* 판 — 이 화면에 이미 있는 바이글 판과 같은 모양으로 맞췄다 */
+  .sheet{position:fixed;inset:0;z-index:60;background:rgba(55,53,47,.4);
+    display:none;align-items:flex-end}
+  .sheet.on{display:flex}
+  .sheet .card{background:#fff;width:100%;max-height:88vh;overflow:auto;
+    border-radius:20px 20px 0 0;padding:8px 16px calc(16px + env(safe-area-inset-bottom))}
+  .grip{width:38px;height:4px;border-radius:2px;background:var(--line2);margin:6px auto 14px}
+  .sheet h4{margin:0 0 12px;font-size:15px;font-weight:700;color:var(--ink)}
+  .fld{width:100%;border:1px solid var(--line);border-radius:6px;padding:10px 12px;
+    font:inherit;font-size:16px;background:#fff;margin-bottom:10px}
+  .fld:focus{outline:none;border-color:var(--ink)}
+  .icogrid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-top:6px;
+    max-height:40vh;overflow-y:auto;padding-right:2px}
+  .icogrid button{aspect-ratio:1;border:1px solid var(--line);background:#fff;border-radius:8px;
+    display:grid;place-items:center;cursor:pointer;color:var(--ink)}
+  .icogrid button.on{border-color:var(--ink);background:var(--soft2)}
+  .icohead{grid-column:1/-1;margin:8px 0 0;font-size:11px;font-weight:800;color:var(--muted)}
+  .icohead:first-child{margin-top:0}
+  .danger{background:#fff;color:#dc2626;border:1px solid var(--line)}
+  .danger:hover{background:#fef2f2}
+
   /* 붙여 넣은 영감 자료 — 폰에서 세 칸 */
   #dgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:10px}
   #dgrid:empty{display:none}
@@ -84,9 +123,13 @@
   .thumb .pick{position:absolute;inset:0;width:100%;height:100%;padding:0;border:0;
     background:none;cursor:pointer;display:block}
   .thumb img{width:100%;height:100%;object-fit:cover;display:block}
-  .thumb .nm{position:absolute;left:0;right:0;bottom:0;padding:3px 5px;font-size:9px;font-weight:700;
-    color:#fff;background:linear-gradient(transparent,rgba(55,53,47,.82));text-align:left;
-    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none}
+  /* 이 그림이 어느 박스에 담겼는지. 눌러서 다른 박스로 옮긴다. */
+  .thumb .bx{position:absolute;left:0;right:0;bottom:0;height:24px;padding:0 5px;border:0;
+    font:inherit;font-size:9px;font-weight:700;color:#fff;text-align:left;cursor:pointer;
+    background:linear-gradient(transparent,rgba(55,53,47,.86));
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:flex-end;
+    padding-bottom:4px}
+  .thumb .bx:hover{background:rgba(55,53,47,.9)}
   /* 화면 목록에서만 뺀다. 드라이브 파일은 그대로 있다. 폰에서 눌리게 32px. */
   .thumb .x{position:absolute;top:2px;right:2px;width:32px;height:32px;padding:0;border:0;
     border-radius:8px;background:rgba(55,53,47,.62);color:#fff;font:inherit;font-size:15px;
@@ -126,6 +169,7 @@
     </div>
     <div class="grp">
       <h2>영감 자료 · 드라이브</h2>
+      <div class="chips" id="dboxes"></div>
       <div id="drive">
         <textarea id="dlink" class="inp" rows="2"
           placeholder="드라이브 공유 링크를 붙여 넣으세요. 여러 개를 한꺼번에 넣어도 됩니다."></textarea>
@@ -137,6 +181,10 @@
   </aside>
   <main id="view"><span class="empty">이미지를 선택하세요</span></main>
 </div>
+
+<div class="sheet" id="sheet"><div class="card" id="sheetcard"></div></div>
+<button class="fab" id="fab" aria-label="박스추가" title="박스추가">＋</button>
+<script src="https://vivivic-cloud.github.io/vivivic-apps/shared/lucide.min.js"></script>
 
 <script>
 const list=document.getElementById('list'),view=document.getElementById('view');
@@ -195,7 +243,7 @@ const 드라이브설정 = { clientId:'', appId:'', apiKey:'' };
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-app.js";
 import { getAuth, signInAnonymously, onAuthStateChanged }
   from "https://www.gstatic.com/firebasejs/11.2.0/firebase-auth.js";
-import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot }
+import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, getDocs, writeBatch }
   from "https://www.gstatic.com/firebasejs/11.2.0/firebase-firestore.js";
 
 const app = initializeApp({
@@ -215,11 +263,44 @@ const drive=document.getElementById('drive'), dgrid=document.getElementById('dgr
       dlink=document.getElementById('dlink'), dadd=document.getElementById('dadd'),
       view2=document.getElementById('view'), list2=document.getElementById('list');
 
+const dboxes=document.getElementById('dboxes'), sheet=document.getElementById('sheet'),
+      sheetcard=document.getElementById('sheetcard'), fab=document.getElementById('fab');
+
 const 상태=t=>{dstate.textContent=t};
 const 알림=(글,나쁨)=>{dmsg.innerHTML='';
   if(!글)return;
   const d=document.createElement('div');d.className='warn'+(나쁨?' bad':'');
   d.textContent=글;dmsg.appendChild(d);};
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* ── 아이콘 — 집이 함께 쓰는 lucide 를 그대로 쓴다 (작업대의 ico 를 베꼈다) ── */
+const toPascal=s=>String(s).split('-').map(w=>w.charAt(0).toUpperCase()+w.slice(1)).join('');
+function ico(name,sz=16,stroke){
+  const L=window.lucide&&window.lucide.icons; if(!L) return '';      // 못 받아 왔으면 글자만 뜬다
+  const n=L[toPascal(name)]||L.Square; if(!n) return '';
+  const [,attrs,kids]=n;
+  const a=Object.assign({},attrs,{width:sz,height:sz,'stroke-width':stroke||1.7});
+  return `<svg ${Object.entries(a).map(([k,v])=>`${k}="${v}"`).join(' ')}>`
+    +kids.map(([t,p])=>`<${t} ${Object.entries(p).map(([k,v])=>`${k}="${v}"`).join(' ')}/>`).join('')+`</svg>`;
+}
+// 작업대의 아이콘 묶음 그대로
+const 아이콘묶음=[
+  ['자주 쓰는 것',['square','layout-grid','folder','file-text','message-square','star',
+    'check-check','bell','tag','bookmark','pin','flag']],
+  ['그림·빛깔',['image','camera','palette','brush','pencil-ruler','sun','moon','contrast',
+    'sparkles','wand-sparkles','eye','aperture']],
+  ['가구·제조',['hammer','wrench','ruler','scissors','layers','package','boxes','factory','cog','component']],
+  ['사람·연락',['users','user-round','messages-square','megaphone','heart','handshake']],
+  ['그 밖',['globe','key','lock','search','lightbulb','rocket','database','cloud','link','archive']],
+];
+
+/* ── 판 (아래에서 올라오는 창) — 작업대와 같은 짜임 ───────────────── */
+// sheetcard 는 살아 남는 칸이라 onclick 을 매번 지운다. addEventListener 로 쌓으면
+// 판을 다시 열 때 지난 번 그림에 걸린 손이 함께 따라와 엉뚱한 것을 옮긴다.
+const 판=속=>{sheetcard.onclick=null;sheetcard.innerHTML='<div class="grip"></div>'+속;sheet.classList.add('on')};
+const 판닫기=()=>{sheet.classList.remove('on');sheetcard.onclick=null;sheetcard.innerHTML=''};
+sheet.onclick=e=>{if(e.target===sheet)판닫기()};
+const $=id=>document.getElementById(id);
 
 /* ── 붙여 넣은 글에서 드라이브 파일 아이디를 뽑는다 ──────────────────
    생김새가 여러 가지다. 줄바꿈·쉼표·빈칸으로 갈라 한꺼번에 받는다. */
@@ -255,14 +336,113 @@ function 띄우기(id,타일){
   [...dgrid.children].forEach(b=>b.classList.toggle('on',b===타일));
 }
 
-function 타일(id){
+/* ── 박스 ────────────────────────────────────────────────────────────
+   박스는 영감 자료를 담는 갈래다. 그림 하나는 박스 하나에 담긴다.
+     cartoon_boxes/{박스id}   { id, name, icon, at }
+     cartoon_refs/{파일id}    { id, at, box }   ← box 가 담긴 박스의 id
+   box 가 비어 있으면 '갈래 없음'. 박스를 지워도 그림은 갈래 없음으로 돌아갈 뿐
+   지워지지 않고, 드라이브 파일은 애초에 건드리지 않는다. */
+let 박스들=[], 자료들=[], 골른박스='';
+const 박스이름=id=>(박스들.find(b=>b.id===id)||{}).name||'';
+
+function 박스그리기(){
+  const 칩=(키,이름,아이콘,켬)=>
+    `<button class="chip${켬?' on':''}" data-box="${esc(키)}">${ico(아이콘,14)}<span>${esc(이름)}</span></button>`;
+  dboxes.innerHTML =
+    칩('','전체','layout-grid',골른박스==='')
+    + 박스들.map(b=>칩(b.id,b.name,b.icon||'square',골른박스===b.id)).join('')
+    + `<button class="chip newbox" id="newboxbtn">${ico('plus',14)}<span>새 박스</span></button>`;
+}
+dboxes.onclick=e=>{
+  if(e.target.closest('#newboxbtn')) return 박스판(null);
+  const t=e.target.closest('[data-box]'); if(!t) return;
+  const 키=t.dataset.box;
+  if(키 && 키===골른박스) return 박스판(박스들.find(b=>b.id===키));  // 고른 것을 또 누르면 박스설정
+  골른박스=키; 박스그리기(); 그리기();
+};
+fab.onclick=()=>박스판(null);
+
+const 새id=()=>'c'+Math.random().toString(36).slice(2,8)+Date.now().toString(36).slice(-4);
+
+function 박스판(b){
+  const 새것=!b, cur=b||{name:'',icon:'square'};
+  let icon=cur.icon||'square';
+  판(`<h4>${새것?'새 박스':'박스설정'}</h4>
+    <input class="fld" id="bn" placeholder="박스 이름" value="${esc(cur.name)}">
+    <input class="fld" id="iq" placeholder="아이콘 찾기 (영문)">
+    <div class="icogrid" id="ig"></div>
+    ${새것?'':`<button class="btn danger" id="del" style="margin-top:10px">박스 지우기</button>`}
+    <button class="btn" id="save" style="margin-top:8px">${새것?'만들기':'저장'}</button>`);
+
+  const 있는것=n=>!!((window.lucide||{}).icons||{})[toPascal(n)];
+  const 한칸=n=>`<button data-ic="${n}" class="${n===icon?'on':''}">${ico(n,18)}</button>`;
+  const 아이콘그리기=()=>{
+    const s=$('iq').value.trim().toLowerCase(), L=(window.lucide||{}).icons;
+    if(!L){$('ig').innerHTML='<p class="note" style="grid-column:1/-1">아이콘을 받지 못했습니다 — 이름만 씁니다</p>';return}
+    if(s){
+      const all=Object.keys(L).map(k=>k.replace(/([a-z0-9])([A-Z])/g,'$1-$2').toLowerCase())
+        .filter(n=>n.includes(s)).slice(0,60);
+      $('ig').innerHTML=all.length?all.map(한칸).join('')
+        :'<p class="note" style="grid-column:1/-1">그런 아이콘이 없습니다</p>';
+      return;
+    }
+    $('ig').innerHTML=아이콘묶음.map(([이름,것들])=>{
+      const 쓸것=것들.filter(있는것);
+      return 쓸것.length?`<h5 class="icohead">${이름}</h5>`+쓸것.map(한칸).join(''):'';
+    }).join('');
+  };
+  $('iq').addEventListener('input',아이콘그리기); 아이콘그리기();
+  $('ig').addEventListener('click',e=>{
+    const t=e.target.closest('[data-ic]'); if(!t)return;
+    icon=t.dataset.ic;
+    [...$('ig').querySelectorAll('[data-ic]')].forEach(c=>c.classList.toggle('on',c===t));
+  });
+  $('save').onclick=async()=>{
+    const name=$('bn').value.trim()||'새 박스';
+    const id=새것?새id():b.id;
+    try{
+      await setDoc(칸('cartoon_boxes',id),{id,name,icon,at:새것?Date.now():(b.at||Date.now())},{merge:true});
+      골른박스=id; 판닫기();
+    }catch(e){ 알림('박스를 만들지 못했습니다 — '+(e.code||e.message),true); 판닫기(); }
+  };
+  if(!새것) $('del').onclick=async()=>{
+    try{
+      // 담겼던 그림은 지우지 않는다. 갈래 없음으로 되돌릴 뿐이다.
+      const s=await getDocs(칸('cartoon_refs'));
+      const w=writeBatch(db); let n=0;
+      s.docs.forEach(d=>{ if((d.data()||{}).box===b.id){ w.update(d.ref,{box:''}); n++; } });
+      if(n) await w.commit();
+      await deleteDoc(칸('cartoon_boxes',b.id));
+      골른박스=''; 판닫기();
+      알림('박스를 지웠습니다 · 담겼던 '+n+'장은 갈래 없음으로 옮겼습니다 (드라이브 파일은 그대로입니다)');
+    }catch(e){ 알림('박스를 지우지 못했습니다 — '+(e.code||e.message),true); 판닫기(); }
+  };
+}
+
+/* 그림 하나를 다른 박스로 옮긴다 */
+function 옮기기판(fid){
+  const 지금=(자료들.find(x=>x.id===fid)||{}).box||'';
+  판(`<h4>어느 박스에 담을까요</h4>`
+    +`<button class="chip${지금===''?' on':''}" data-to="" style="width:100%;justify-content:flex-start;margin-bottom:6px">${ico('layout-grid',14)}<span>갈래 없음</span></button>`
+    +박스들.map(b=>`<button class="chip${지금===b.id?' on':''}" data-to="${esc(b.id)}" style="width:100%;justify-content:flex-start;margin-bottom:6px">${ico(b.icon||'square',14)}<span>${esc(b.name)}</span></button>`).join('')
+    +(박스들.length?'':`<p class="note">아직 박스가 없습니다. 아래 ＋ 로 만들어 주세요.</p>`));
+  sheetcard.onclick=async e=>{
+    const t=e.target.closest('[data-to]'); if(!t)return;
+    try{ await setDoc(칸('cartoon_refs',fid),{box:t.dataset.to},{merge:true}); 판닫기(); }
+    catch(err){ 알림('옮기지 못했습니다 — '+(err.code||err.message),true); 판닫기(); }
+  };
+}
+
+function 타일(id,box){
   const d=document.createElement('div');
   d.className='thumb';d.dataset.id=id;d.title=id;
   d.innerHTML=`<button class="pick"><img alt="" loading="lazy"></button>
-    <span class="nm"></span><button class="x" aria-label="목록에서 빼기">✕</button>`;
+    <button class="bx"></button><button class="x" aria-label="목록에서 빼기">✕</button>`;
   const img=d.querySelector('img');
   img.src=그림주소(id,400);
-  d.querySelector('.nm').textContent=id.slice(0,10)+'…';
+  const bxb=d.querySelector('.bx');
+  bxb.textContent=box?박스이름(box):'갈래 없음';
+  bxb.onclick=e=>{e.stopPropagation();옮기기판(id)};
   // 안 뜨면 조용히 넘어가지 않는다. 깨진 그림만 덜렁 두지 않는다.
   img.onerror=()=>{
     if(d.querySelector('.shut'))return;
@@ -279,11 +459,13 @@ function 타일(id){
   return d;
 }
 
-function 그리기(것들){
+function 그리기(){
   const 열린것=[...dgrid.querySelectorAll('.thumb.on')].map(e=>e.dataset.id);
+  const 볼것=골른박스?자료들.filter(x=>(x.box||'')===골른박스):자료들;
   dgrid.innerHTML='';
-  것들.forEach(x=>{const t=타일(x.id); if(열린것.includes(x.id))t.classList.add('on'); dgrid.appendChild(t)});
-  상태(것들.length?'영감 자료 · '+것들.length+'장':'영감 자료 · 없음');
+  볼것.forEach(x=>{const t=타일(x.id,x.box||''); if(열린것.includes(x.id))t.classList.add('on'); dgrid.appendChild(t)});
+  const 어디=골른박스?박스이름(골른박스):'영감 자료';
+  상태(볼것.length?어디+' · '+볼것.length+'장':어디+' · 없음');
 }
 
 async function 넣기(){
@@ -293,9 +475,10 @@ async function 넣기(){
   dadd.disabled=true;dadd.textContent='넣는 중…';
   try{
     const 때=Date.now();
-    await Promise.all(아이디.map((id,i)=>setDoc(칸('cartoon_refs',id),{id,at:때+i},{merge:true})));
+    // 지금 고른 박스에 담긴다. '전체' 를 보고 있으면 갈래 없음으로 들어간다.
+    await Promise.all(아이디.map((id,i)=>setDoc(칸('cartoon_refs',id),{id,at:때+i,box:골른박스},{merge:true})));
     dlink.value='';
-    let 글=아이디.length+'장 넣었습니다';
+    let 글=아이디.length+'장 넣었습니다'+(골른박스?' · '+박스이름(골른박스):'');
     if(폴더) 글+=' · 폴더 '+폴더+'개는 못 읽어 건너뛰었습니다. 그림 링크를 하나씩 넣어 주세요';
     else if(모름) 글+=' · '+모름+'개는 드라이브 링크가 아니라 건너뛰었습니다';
     알림(글, !!(폴더||모름));
@@ -344,7 +527,7 @@ function 고르기붙이기(){
           const 것들=d[google.picker.Response.DOCUMENTS]||[];
           const 때=Date.now();
           try{
-            await Promise.all(것들.map((x,i)=>setDoc(칸('cartoon_refs',x.id),{id:x.id,at:때+i},{merge:true})));
+            await Promise.all(것들.map((x,i)=>setDoc(칸('cartoon_refs',x.id),{id:x.id,at:때+i,box:골른박스},{merge:true})));
             알림(것들.length+'장 넣었습니다');
           }catch(e){ 알림('넣지 못했습니다 — '+(e.code||e.message),true); }
         }).build().setVisible(true);
@@ -355,12 +538,21 @@ function 고르기붙이기(){
 if(드라이브설정.clientId && 드라이브설정.apiKey) 고르기붙이기();
 
 /* ── 익명으로 들어가고, 담긴 것을 따라온다 (집이 하는 그대로) ───────── */
+fab.innerHTML=ico('plus',26)||'＋';
+박스그리기();                       // 파이어베이스가 닿기 전에도 칩 줄은 보인다
 상태('영감 자료 · 여는 중');
 onAuthStateChanged(auth, u=>{
   if(!u) return signInAnonymously(auth).catch(e=>{
     상태('영감 자료 · 못 들어감'); 알림('들어가지 못했습니다 — '+(e.code||e.message),true); });
-  onSnapshot(칸('cartoon_refs'), s=>{        // 다른 기기에서 넣어도 따라온다
-    그리기(s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.at||0)-(b.at||0)));
+  // 다른 기기에서 넣거나 박스를 만들어도 따라온다
+  onSnapshot(칸('cartoon_boxes'), s=>{
+    박스들=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.at||0)-(b.at||0));
+    if(골른박스 && !박스들.some(b=>b.id===골른박스)) 골른박스='';   // 남이 지운 박스를 보고 있었으면 전체로
+    박스그리기(); 그리기();
+  }, e=>{ 알림('박스를 불러오지 못했습니다 — '+(e.code||e.message),true); });
+  onSnapshot(칸('cartoon_refs'), s=>{
+    자료들=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.at||0)-(b.at||0));
+    그리기();
   }, e=>{ 상태('영감 자료 · 못 읽음'); 알림('불러오지 못했습니다 — '+(e.code||e.message),true); });
 });
 </script>
