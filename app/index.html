@@ -179,13 +179,18 @@
       <h2>영감 자료 · 드라이브</h2>
       <div class="chips" id="dboxes"></div>
       <div id="drive">
-        <button class="btn" id="dpick">드라이브에서 고르기</button>
+        <button class="btn" id="dup">그림 올리기</button>
+        <input type="file" id="dfile" accept="image/*" multiple hidden>
+        <button class="lnk" id="dmore">다른 방법 — 링크 · 드라이브</button>
         <div id="dsetup"></div>
+        <div id="dother" hidden>
+        <button class="btn" id="dpick" style="background:var(--soft);color:var(--ink);border:1px solid var(--line)">드라이브에서 고르기</button>
         <button class="lnk" id="dtoggle">링크로 넣기</button>
         <div id="dpaste" hidden>
           <textarea id="dlink" class="inp" rows="2"
             placeholder="드라이브 공유 링크를 붙여 넣으세요. 여러 개를 한꺼번에 넣어도 됩니다."></textarea>
           <button class="btn" id="dadd" style="margin-top:8px">넣기</button>
+        </div>
         </div>
         <div id="dmsg"></div>
       </div>
@@ -255,6 +260,8 @@ import { getAuth, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, sig
   from "https://www.gstatic.com/firebasejs/11.2.0/firebase-auth.js";
 import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, getDocs, writeBatch }
   from "https://www.gstatic.com/firebasejs/11.2.0/firebase-firestore.js";
+import { getStorage, ref as sref, uploadBytes, getDownloadURL, deleteObject }
+  from "https://www.gstatic.com/firebasejs/11.2.0/firebase-storage.js";
 
 const app = initializeApp({
   apiKey: 웹열쇠,
@@ -264,7 +271,7 @@ const app = initializeApp({
   messagingSenderId: "830175660542",
   appId: "1:830175660542:web:9054030480c8280af8d8af"
 });
-const auth = getAuth(app), db = getFirestore(app);
+const auth = getAuth(app), db = getFirestore(app), storage = getStorage(app);
 const 뿌리 = ['artifacts', 'vivivic-4b7ef', 'public', 'data'];
 const 칸 = (이름, id) => id ? doc(db, ...뿌리, 이름, id) : collection(db, ...뿌리, 이름);
 
@@ -273,9 +280,14 @@ const drive=document.getElementById('drive'), dgrid=document.getElementById('dgr
       dlink=document.getElementById('dlink'), dadd=document.getElementById('dadd'),
       dpick=document.getElementById('dpick'), dsetup=document.getElementById('dsetup'),
       dtoggle=document.getElementById('dtoggle'), dpaste=document.getElementById('dpaste'),
+      dup=document.getElementById('dup'), dfile=document.getElementById('dfile'),
+      dmore=document.getElementById('dmore'), dother=document.getElementById('dother'),
       view2=document.getElementById('view'), list2=document.getElementById('list');
 
 dtoggle.onclick=()=>{dpaste.hidden=!dpaste.hidden;dtoggle.textContent=dpaste.hidden?'링크로 넣기':'링크 넣는 칸 접기'};
+dmore.onclick=()=>{dother.hidden=!dother.hidden;
+  dmore.textContent=dother.hidden?'다른 방법 — 링크 · 드라이브':'다른 방법 접기';
+  if(!dother.hidden) 켜졌나();};
 
 const dboxes=document.getElementById('dboxes'), sheet=document.getElementById('sheet'),
       sheetcard=document.getElementById('sheetcard'), fab=document.getElementById('fab');
@@ -344,32 +356,37 @@ async function 토큰그림(id){
   if(!r.ok) throw new Error('구글이 '+r.status+' 로 답했습니다');
   return URL.createObjectURL(await r.blob());
 }
+// 올린 그림은 그 주소가 곧 그림이다. 드라이브 것만 아래 되받기가 필요하다.
+const 올린것=x=>x&&x.kind==='올린것'&&x.url;
 // 먼저 공개 주소로 걸어 보고, 안 되면 자격으로 다시 받는다. 그래도 안 되면 까닭을 적는다.
-function 그림걸기(img,id,폭,실패했을때){
+function 그림걸기(img,x,폭,실패했을때){
+  if(올린것(x)){ img.onerror=()=>실패했을때(); img.src=x.url; return; }
   let 다시썼다=false;
   img.onerror=async()=>{
     if(다시썼다||!토큰) return 실패했을때();
     다시썼다=true;
-    try{ img.src=await 토큰그림(id); }catch(e){ 실패했을때(); }
+    try{ img.src=await 토큰그림(x.id); }catch(e){ 실패했을때(); }
   };
-  img.src=그림주소(id,폭);
+  img.src=그림주소(x.id,폭);
 }
 
 /* 큰 자리에 띄운다. 원래 그림 보기와 같은 자리를 쓴다. */
-function 띄우기(id,타일){
+function 띄우기(x,타일){
   window.카툰비우기 && window.카툰비우기();
   view2.innerHTML='';
   const 통=document.createElement('div');
   통.style.cssText='display:flex;flex-direction:column;align-items:center;max-width:100%;max-height:100%;min-height:0';
-  const img=new Image();img.alt=id;img.style.minHeight='0';통.appendChild(img);
-  그림걸기(img,id,1600,()=>{img.remove();
+  const img=new Image();img.alt=x.name||x.id;img.style.minHeight='0';통.appendChild(img);
+  그림걸기(img,x,1600,()=>{img.remove();
     const p=document.createElement('p');p.className='note';
-    p.textContent='이 그림을 불러오지 못했습니다 — 링크 공개가 아니면 드라이브에서 「링크가 있는 모든 사용자」로 바꾸거나, 「드라이브에서 고르기」로 다시 담아 주세요';
+    p.textContent=올린것(x)?'이 그림을 불러오지 못했습니다'
+      :'이 그림을 불러오지 못했습니다 — 링크 공개가 아니면 드라이브에서 「링크가 있는 모든 사용자」로 바꿔 주세요';
     통.insertBefore(p,통.firstChild);});
   // 틀(iframe) 안에 넣지 않는다 — 원본은 새 창으로 연다. 집 규칙이다.
   const a=document.createElement('a');
-  a.className='open';a.href=원본주소(id);a.target='_blank';a.rel='noopener noreferrer';
-  a.textContent='드라이브에서 열기';통.appendChild(a);
+  a.className='open';a.href=올린것(x)?x.url:원본주소(x.id);
+  a.target='_blank';a.rel='noopener noreferrer';
+  a.textContent=올린것(x)?'원본 크기로 열기':'드라이브에서 열기';통.appendChild(a);
   view2.appendChild(통);
   [...list2.children].forEach(b=>b.classList.remove('on'));
   [...dgrid.children].forEach(b=>b.classList.toggle('on',b===타일));
@@ -472,27 +489,33 @@ function 옮기기판(fid){
   };
 }
 
-function 타일(id,box){
+function 타일(x){
+  const id=x.id, 내것=올린것(x);
   const d=document.createElement('div');
-  d.className='thumb';d.dataset.id=id;d.title=id;
+  d.className='thumb';d.dataset.id=id;d.title=x.name||id;
   d.innerHTML=`<button class="pick"><img alt="" loading="lazy"></button>
-    <button class="bx"></button><button class="x" aria-label="목록에서 빼기">✕</button>`;
+    <button class="bx"></button>
+    <button class="x" aria-label="${내것?'지우기':'목록에서 빼기'}">✕</button>`;
   const img=d.querySelector('img');
   const bxb=d.querySelector('.bx');
-  bxb.textContent=box?박스이름(box):'갈래 없음';
+  bxb.textContent=x.box?박스이름(x.box):'갈래 없음';
   bxb.onclick=e=>{e.stopPropagation();옮기기판(id)};
   // 안 뜨면 조용히 넘어가지 않는다. 깨진 그림만 덜렁 두지 않는다.
-  그림걸기(img,id,400,()=>{
+  그림걸기(img,x,400,()=>{
     if(d.querySelector('.shut'))return;
     const s=document.createElement('div');s.className='shut';
-    s.textContent='이 링크는 아직 공개가 아닙니다 — 드라이브에서 ‘링크가 있는 모든 사용자’로 바꾸거나 「드라이브에서 고르기」로 담아 주세요';
+    s.textContent=내것?'이 그림을 불러오지 못했습니다'
+      :'이 링크는 아직 공개가 아닙니다 — 드라이브에서 ‘링크가 있는 모든 사용자’로 바꿔 주세요';
     d.appendChild(s);
   });
-  d.querySelector('.pick').onclick=()=>띄우기(id,d);
+  d.querySelector('.pick').onclick=()=>띄우기(x,d);
   d.querySelector('.x').onclick=async e=>{
     e.stopPropagation();
-    try{ await deleteDoc(칸('cartoon_refs',id)); }        // 화면 목록에서만 뺀다
-    catch(err){ 알림('빼지 못했습니다 — '+(err.code||err.message),true); }
+    try{
+      // 올린 그림은 우리 것이라 통에서도 치운다. 드라이브 것은 목록에서만 뺀다.
+      if(내것&&x.path){ try{ await deleteObject(sref(storage,x.path)); }catch(err){} }
+      await deleteDoc(칸('cartoon_refs',id));
+    }catch(err){ 알림('빼지 못했습니다 — '+(err.code||err.message),true); }
   };
   return d;
 }
@@ -501,7 +524,7 @@ function 그리기(){
   const 열린것=[...dgrid.querySelectorAll('.thumb.on')].map(e=>e.dataset.id);
   const 볼것=골른박스?자료들.filter(x=>(x.box||'')===골른박스):자료들;
   dgrid.innerHTML='';
-  볼것.forEach(x=>{const t=타일(x.id,x.box||''); if(열린것.includes(x.id))t.classList.add('on'); dgrid.appendChild(t)});
+  볼것.forEach(x=>{const t=타일(x); if(열린것.includes(x.id))t.classList.add('on'); dgrid.appendChild(t)});
   const 어디=골른박스?박스이름(골른박스):'영감 자료';
   상태(볼것.length?어디+' · '+볼것.length+'장':어디+' · 없음');
 }
@@ -524,6 +547,37 @@ async function 넣기(){
   finally{ dadd.disabled=false;dadd.textContent='넣기'; }
 }
 dadd.onclick=넣기;
+
+/* ── 그림 올리기 ─────────────────────────────────────────────────────
+   앞세운 길이다. 구글 쪽에 켜 줄 것이 하나도 없다. 집이 이미 쓰는
+   파이어베이스 저장소에 그대로 올린다 (vivivic-4b7ef.firebasestorage.app).
+   올린 그림은 담긴 곳 주소가 곧 그림이라 다른 기기에서도 바로 뜬다. */
+dup.onclick=()=>dfile.click();
+dfile.onchange=async()=>{
+  const 것들=[...dfile.files].filter(f=>f.type.startsWith('image/'));
+  const 뺀것=dfile.files.length-것들.length;
+  dfile.value='';                                   // 같은 그림을 또 골라도 열리게
+  if(!것들.length) return 알림(뺀것?'그림 파일이 아닙니다':'',!!뺀것);
+  dup.disabled=true;
+  let 된것=0;
+  try{
+    for(const f of 것들){
+      dup.textContent=`올리는 중… ${된것+1}/${것들.length}`;
+      const id='up'+새id();
+      const 길='cartoon/'+id;
+      const r=sref(storage,길);
+      await uploadBytes(r,f,{contentType:f.type||'image/jpeg'});
+      const url=await getDownloadURL(r);
+      await setDoc(칸('cartoon_refs',id),
+        {id,at:Date.now()+된것,box:골른박스,kind:'올린것',url,path:길,name:f.name},{merge:true});
+      된것++;
+    }
+    알림(된것+'장 올렸습니다'+(골른박스?' · '+박스이름(골른박스):'')
+      +(뺀것?' · 그림이 아닌 '+뺀것+'개는 건너뛰었습니다':''),!!뺀것);
+  }catch(e){
+    알림((된것?된것+'장까지 올리고 멈췄습니다 — ':'올리지 못했습니다 — ')+(e.code||e.message),true);
+  }finally{ dup.disabled=false;dup.textContent='그림 올리기'; }
+};
 
 /* ── 드라이브에서 고르기 ─────────────────────────────────────────────
    파이어베이스 구글 로그인으로 토큰을 받아(집이 이미 쓰는 그 프로젝트),
@@ -588,8 +642,12 @@ function 켜는법(){
     </ol></div>`;
 }
 
-/* 켜져 있는지 미리 물어본다 — 구글에 그냥 물으면 알려 준다. 열쇠는 안 쓴다. */
-(async()=>{
+/* 켜져 있는지 물어본다 — 구글에 그냥 물으면 알려 준다. 열쇠는 안 쓴다.
+   화면을 열 때가 아니라 '다른 방법' 을 펴 보실 때만 묻는다. 올리기로 쓰시는
+   분께 구글 콘솔 이야기를 들이밀 일이 아니다. */
+let 물어봤다=false;
+async function 켜졌나(){
+  if(물어봤다) return; 물어봤다=true;
   try{
     const [d,a]=await Promise.all([
       fetch(`https://identitytoolkit.googleapis.com/v1/projects?key=${웹열쇠}`).then(r=>r.json()),
@@ -601,7 +659,7 @@ function 켜는법(){
     const 로그인됨=!(a.error&&/OPERATION_NOT_ALLOWED/.test(a.error.message||''));
     if(!도메인됨||!로그인됨) 켜는법();
   }catch(e){ /* 물어보지 못했으면 조용히 둔다. 눌러 보면 그때 알려 준다. */ }
-})();
+}
 
 /* ── 익명으로 들어가고, 담긴 것을 따라온다 (집이 하는 그대로) ───────── */
 fab.innerHTML=ico('plus',26)||'＋';
