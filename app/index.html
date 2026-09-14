@@ -222,9 +222,11 @@
         max-height:100%;overflow:auto;padding:2px}
   /* 새 페이지 — 빈칸 하나하나가 「이곳을 어떻게 채울지」 적는 자리다.
      적는 것까지가 지금 할 일이고, 그림 만들기는 아직 붙이지 않았다. */
-  .pages{display:flex;flex-direction:column;gap:10px;width:100%}
-  .page{position:relative;border:1px dashed var(--line2);border-radius:10px;background:#fff;
-        padding:10px 40px 10px 10px}
+  /* 페이지는 옆으로 이어진다. 넘쳐도 옆으로 밀어 넘겨 본다. */
+  .pages{display:flex;flex-direction:row;gap:10px;width:100%;overflow-x:auto;padding-bottom:4px;
+         align-items:stretch}
+  .page{position:relative;flex:0 0 auto;width:220px;border:1px dashed var(--line2);
+        border-radius:10px;background:#fff;padding:10px 40px 10px 10px}
   .page .pinp{width:100%;border:0;background:none;font:inherit;font-size:13px;line-height:1.5;
         resize:vertical;min-height:64px;outline:none;color:var(--ink);display:block}
   .page .pinp::placeholder{color:var(--faint)}
@@ -233,8 +235,8 @@
         font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center}
   .page .px:hover{background:var(--soft2);color:var(--ink)}
   .page.new{display:flex;align-items:center;justify-content:center;gap:6px;min-height:72px;
-        width:100%;padding:10px;cursor:pointer;color:var(--faint);font:inherit;font-size:12px;
-        font-weight:700;transition:all .2s}
+        flex:0 0 auto;width:120px;padding:10px;cursor:pointer;color:var(--faint);font:inherit;
+        font-size:12px;font-weight:700;transition:all .2s}
   .page.new:hover{color:var(--ink);border-color:var(--faint);background:var(--hover)}
   .page .cnt{position:absolute;left:10px;top:-8px;background:#fff;padding:0 5px;
         font-size:9px;font-weight:800;color:var(--faint)}
