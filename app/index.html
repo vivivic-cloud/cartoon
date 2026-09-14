@@ -175,6 +175,21 @@
   .bcard.new{border-style:dashed;color:var(--faint)}
   .bcard.new:hover{color:var(--ink)}
 
+  /* 박스 안 — 아래 줄에서 박스를 누르면 가운데가 그 박스 안이 된다 */
+  .inbox{width:100%;max-height:100%;overflow:auto}
+  .hd2{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+  .hd2 h3{margin:0;display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;
+    color:var(--ink)}
+  .back{display:inline-flex;align-items:center;gap:4px;background:#fff;border:1px solid var(--line);
+    border-radius:999px;padding:7px 12px;min-height:32px;font:inherit;font-size:12px;
+    font-weight:700;color:var(--muted);cursor:pointer;transition:all .2s}
+  .back:hover{background:var(--hover);color:var(--ink)}
+  .igrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px}
+  .icard{position:relative;aspect-ratio:1;border:1px solid var(--line);border-radius:10px;
+    overflow:hidden;background:var(--soft);cursor:pointer;padding:0;transition:all .2s}
+  .icard:hover{border-color:var(--faint)}
+  .icard img{width:100%;height:100%;object-fit:cover;display:block}
+
   /* 무대 — 씨앗 그림은 왼쪽, 오른쪽은 다음 장이 들어올 자리.
      자리만 잡아 둔 것이고 아무 기능도 없다. 반반(1:1)으로 나눴다. */
   .stage{align-self:stretch;flex:1;display:flex;gap:16px;min-width:0;min-height:0}
@@ -491,6 +506,7 @@ dboxes.onclick=e=>{
   const 키=t.dataset.box;
   if(키 && 키===골른박스) return 박스판(박스들.find(b=>b.id===키));  // 고른 것을 또 누르면 박스설정
   골른박스=키; 박스그리기(); 그리기(); 아래박스();
+  키?박스안():(안에있다=false,view2.innerHTML='<span class="empty">이미지를 선택하세요</span>');
 };
 fab.onclick=()=>박스판(null);
 
@@ -554,6 +570,41 @@ function 페이지그리기(어디){
 }
 window.카툰페이지=어디=>페이지그리기(어디);
 
+/* ── 박스 안으로 들어가기 ────────────────────────────────────────────
+   아래 줄에서 박스를 누르면 가운데가 그 박스 안이 된다. 담긴 그림이 펼쳐지고,
+   그 중 하나를 누르면 그것이 씨앗이 되어 무대로 넘어간다. */
+let 안에있다=false;
+function 박스안(){
+  if(!골른박스){ 안에있다=false; return; }
+  안에있다=true;
+  const b=박스들.find(x=>x.id===골른박스)||{};
+  const 것들=자료들.filter(x=>(x.box||'')===골른박스).sort((a,b2)=>(a.at||0)-(b2.at||0));
+  view2.innerHTML=`<div class="inbox">
+      <div class="hd2">
+        <button class="back" id="bback">${ico('arrow-left',13)}<span>나가기</span></button>
+        <h3>${ico(b.icon||'square',16)}<span>${esc(b.name||'박스')}</span>
+          <span style="color:var(--faint);font-weight:600">· ${것들.length}장</span></h3>
+      </div>
+      <div class="igrid">${것들.map(x=>
+        `<button class="icard" data-id="${esc(x.id)}" title="${esc(x.name||x.id)}"><img alt="" loading="lazy"></button>`).join('')}</div>
+      ${것들.length?'':'<p class="note">이 박스에 아직 그림이 없습니다. 왼쪽 「그림 올리기」로 담아 주세요.</p>'}
+    </div>`;
+  것들.forEach(x=>{
+    const el=view2.querySelector('.icard[data-id="'+CSS.escape(x.id)+'"] img');
+    if(el) 그림걸기(el,x,400,()=>{});
+  });
+  view2.querySelector('#bback').onclick=()=>{
+    골른박스=''; 안에있다=false;
+    박스그리기(); 아래박스(); 그리기();
+    view2.innerHTML='<span class="empty">이미지를 선택하세요</span>';
+  };
+  view2.querySelector('.igrid').onclick=e=>{
+    const t=e.target.closest('[data-id]'); if(!t)return;
+    const x=자료들.find(y=>y.id===t.dataset.id);
+    if(x){ 안에있다=false; 띄우기(x,null); }
+  };
+}
+
 function 아래박스(){
   const 칸=(키,이름,아이콘,켬)=>
     `<button class="bcard${켬?' on':''}" data-box="${esc(키)}">${ico(아이콘,20)}<span>${esc(이름)}</span></button>`;
@@ -563,7 +614,7 @@ function 아래박스(){
   bbar.onclick=e=>{
     if(e.target.closest('#bnew')) return 박스판(null);
     const t=e.target.closest('[data-box]'); if(!t)return;
-    골른박스=t.dataset.box; 박스그리기(); 그리기(); 아래박스();
+    골른박스=t.dataset.box; 박스그리기(); 그리기(); 아래박스(); 박스안();
   };
 }
 
@@ -828,6 +879,7 @@ onAuthStateChanged(auth, u=>{
   onSnapshot(칸('cartoon_refs'), s=>{
     자료들=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.at||0)-(b.at||0));
     그리기();
+    if(안에있다 && !view2.querySelector('img')) 박스안();
   }, e=>{ 상태('영감 자료 · 못 읽음'); 알림('불러오지 못했습니다 — '+(e.code||e.message),true); });
 });
 </script>
