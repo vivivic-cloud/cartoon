@@ -162,7 +162,9 @@
     main{padding:16px;min-height:38vh}
   }
   @media (min-width:1024px){ #dgrid{grid-template-columns:repeat(3,1fr)} }
-  /* 노트북에서 그림이 너무 컸다. 넓은 화면에서만 절반으로 줄인다. 폰은 그대로. */
+  /* 노트북에서 그림이 너무 컸다. 목록 그림이 아니라 크게 띄운 그림이다 —
+     목록은 옆칸(280px) 안에 있어 노트북에서 오히려 폰보다 작다(81px 대 113px).
+     크게 띄운 그림만 넓은 화면에서 절반으로 줄인다. 폰은 그대로. */
   @media (min-width:641px){ main img{max-width:50%;max-height:50%} }
 </style>
 </head>
