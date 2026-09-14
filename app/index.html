@@ -163,7 +163,30 @@
     display:flex;gap:8px;align-items:center;overflow-x:auto;
     background:#fff;border-top:1px solid var(--line);padding:10px 84px 10px 16px}
   body{padding-bottom:94px}   /* 아래 줄에 가려지는 데가 없게 */
-  #bbar .bcard{flex:0 0 auto;width:100px;min-height:72px;padding:10px 8px;font-size:12px;gap:6px}
+  #bbar .bcard{position:relative;flex:0 0 auto;width:100px;min-height:72px;padding:10px 8px;
+    font-size:12px;gap:6px}
+  /* 박스를 지우는 ✕. 폰에서 눌리게 28px. */
+  #bbar .bcard .bx2{position:absolute;top:1px;right:1px;width:28px;height:28px;padding:0;border:0;
+    border-radius:8px;background:none;color:var(--faint);font:inherit;font-size:12px;
+    font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center}
+  #bbar .bcard .bx2:hover{background:var(--soft2);color:#dc2626}
+  #bbar .bcard.on .bx2{color:rgba(255,255,255,.7)}
+  #bbar .bcard.on .bx2:hover{background:rgba(255,255,255,.18);color:#fff}
+  #bbar .bcard.bin{border-style:dashed}
+  /* 삭제함 */
+  .trash .row{display:flex;align-items:center;gap:10px;padding:10px;border:1px solid var(--line);
+    border-radius:10px;background:#fff;margin-bottom:8px}
+  .trash .row .nm2{flex:1;min-width:0;font-size:13px;font-weight:700;overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap}
+  .trash .row img{width:44px;height:44px;object-fit:cover;border-radius:8px;flex:none;
+    background:var(--soft)}
+  .trash .row .kind{font-size:10px;font-weight:700;color:var(--faint);flex:none}
+  .trash .row button{flex:none;min-height:32px;border-radius:8px;padding:6px 10px;font:inherit;
+    font-size:11px;font-weight:700;cursor:pointer;border:1px solid var(--line);background:#fff;
+    color:var(--muted)}
+  .trash .row button:hover{background:var(--hover);color:var(--ink)}
+  .trash .row button.gone{color:#dc2626}
+  .trash .row button.gone:hover{background:#fef2f2}
   .bcard{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
     min-height:96px;padding:12px 8px;background:#fff;border:1px solid var(--line);
     border-radius:10px;cursor:pointer;font:inherit;font-size:13px;font-weight:700;
@@ -435,6 +458,9 @@ function 아이디뽑기(글){
   return {아이디,폴더,모름};
 }
 
+// 같은 그림이라도 박스가 다르면 다른 것으로 친다. 그래서 문서 아이디는 칸마다 새로 만들고
+// 드라이브 파일 아이디는 fid 로 따로 둔다. (fid 가 없는 옛 자료는 문서 아이디가 곧 파일 아이디다)
+const 파일id=x=>x.fid||x.id;
 const 그림주소=(id,폭)=>`https://drive.google.com/thumbnail?id=${id}&sz=w${폭}`;
 const 원본주소=id=>`https://drive.google.com/file/d/${id}/view`;
 
@@ -457,19 +483,20 @@ function 그림걸기(img,x,폭,실패했을때){
   img.onerror=async()=>{
     if(다시썼다||!토큰) return 실패했을때();
     다시썼다=true;
-    try{ img.src=await 토큰그림(x.id); }catch(e){ 실패했을때(); }
+    try{ img.src=await 토큰그림(파일id(x)); }catch(e){ 실패했을때(); }
   };
-  img.src=그림주소(x.id,폭);
+  img.src=그림주소(파일id(x),폭);
 }
 
 /* 큰 자리에 띄운다. 원래 그림 보기와 같은 자리를 쓴다. */
 function 띄우기(x,타일){
   window.카툰비우기 && window.카툰비우기();
+  view2.onclick=null; 삭제함보는중=false; 안에있다=false;
   view2.innerHTML='';
   const img=new Image();img.alt=x.name||x.id;
   // 틀(iframe) 안에 넣지 않는다 — 원본은 새 창으로 연다. 집 규칙이다.
   const a=document.createElement('a');
-  a.className='open';a.href=올린것(x)?x.url:원본주소(x.id);
+  a.className='open';a.href=올린것(x)?x.url:원본주소(파일id(x));
   a.target='_blank';a.rel='noopener noreferrer';
   a.textContent=올린것(x)?'원본 크기로 열기':'드라이브에서 열기';
   const s=window.카툰무대(img,a,'ref:'+x.id);
@@ -497,7 +524,7 @@ function 박스그리기(){
     `<button class="chip${켬?' on':''}" data-box="${esc(키)}">${ico(아이콘,14)}<span>${esc(이름)}</span></button>`;
   dboxes.innerHTML =
     칩('','전체','layout-grid',골른박스==='')
-    + 박스들.map(b=>칩(b.id,b.name,b.icon||'square',골른박스===b.id)).join('')
+    + 산박스().map(b=>칩(b.id,b.name,b.icon||'square',골른박스===b.id)).join('')
     + `<button class="chip newbox" id="newboxbtn">${ico('plus',14)}<span>새 박스</span></button>`;
 }
 dboxes.onclick=e=>{
@@ -531,7 +558,7 @@ function 페이지그리기(어디){
   }
   자리.dataset.밀림='';
   const 씨앗키=자리.dataset.seed||'';
-  const 것들=페이지들.filter(p=>p.seed===씨앗키).sort((a,b)=>(a.at||0)-(b.at||0));
+  const 것들=페이지들.filter(p=>p.seed===씨앗키&&!p.del).sort((a,b)=>(a.at||0)-(b.at||0));
   const 통=document.createElement('div');통.className='pages';
   것들.forEach((p,i)=>{
     const d=document.createElement('div');d.className='page';
@@ -575,10 +602,11 @@ window.카툰페이지=어디=>페이지그리기(어디);
    그 중 하나를 누르면 그것이 씨앗이 되어 무대로 넘어간다. */
 let 안에있다=false;
 function 박스안(){
+  view2.onclick=null;
   if(!골른박스){ 안에있다=false; return; }
-  안에있다=true;
+  안에있다=true; 삭제함보는중=false;
   const b=박스들.find(x=>x.id===골른박스)||{};
-  const 것들=자료들.filter(x=>(x.box||'')===골른박스).sort((a,b2)=>(a.at||0)-(b2.at||0));
+  const 것들=자료들.filter(x=>(x.box||'')===골른박스&&!x.del).sort((a,b2)=>(a.at||0)-(b2.at||0));
   view2.innerHTML=`<div class="inbox">
       <div class="hd2">
         <button class="back" id="bback">${ico('arrow-left',13)}<span>나가기</span></button>
@@ -605,16 +633,110 @@ function 박스안(){
   };
 }
 
+let 삭제함보는중=false;
+const 산박스=()=>박스들.filter(b=>!b.del);
+const 버린것=()=>[...박스들.filter(b=>b.del),...자료들.filter(x=>x.del),...페이지들.filter(p=>p.del)];
+
 function 아래박스(){
   const 칸=(키,이름,아이콘,켬)=>
-    `<button class="bcard${켬?' on':''}" data-box="${esc(키)}">${ico(아이콘,20)}<span>${esc(이름)}</span></button>`;
+    `<div class="bcard${켬?' on':''}" data-box="${esc(키)}" role="button" tabindex="0">
+       ${ico(아이콘,20)}<span>${esc(이름)}</span>
+       <button class="bx2" data-del="${esc(키)}" aria-label="${esc(이름)} 지우기">✕</button></div>`;
+  const 버린수=버린것().length;
   bbar.innerHTML=
-    박스들.map(b=>칸(b.id,b.name,b.icon||'square',골른박스===b.id)).join('')
-    + `<button class="bcard new" id="bnew">${ico('plus',20)}<span>새 박스</span></button>`;
+    산박스().map(b=>칸(b.id,b.name,b.icon||'square',골른박스===b.id)).join('')
+    + `<button class="bcard new" id="bnew">${ico('plus',20)}<span>새 박스</span></button>`
+    + `<button class="bcard bin${삭제함보는중?' on':''}" id="bbin">${ico('trash-2',20)}
+         <span>삭제함${버린수?' '+버린수:''}</span></button>`;
   bbar.onclick=e=>{
     if(e.target.closest('#bnew')) return 박스판(null);
+    if(e.target.closest('#bbin')) return 삭제함();
+    const x=e.target.closest('[data-del]');
+    if(x){ e.stopPropagation(); return 박스지우기(x.dataset.del); }
     const t=e.target.closest('[data-box]'); if(!t)return;
+    삭제함보는중=false;
     골른박스=t.dataset.box; 박스그리기(); 그리기(); 아래박스(); 박스안();
+  };
+}
+
+/* ── 박스 지우기 ────────────────────────────────────────────────────
+   빈 박스는 그냥 없앤다. 안에 든 것이 있으면 지우지 않고 삭제함으로 옮긴다
+   (박스와 그 안의 그림·페이지에 del 표를 붙인다). 삭제함에서 지워야 진짜 없어진다.
+   그림 하나는 박스 하나에만 딸려 있으므로 다른 박스에는 아무 일도 없다. */
+async function 박스지우기(id){
+  const b=박스들.find(x=>x.id===id); if(!b)return;
+  const 든그림=자료들.filter(x=>!x.del&&(x.box||'')===id);
+  const 든페이지=페이지들.filter(p=>!p.del&&(p.box||'')===id);
+  const 수=든그림.length+든페이지.length;
+  if(!수){
+    try{ await deleteDoc(칸('cartoon_boxes',id)); 알림('빈 박스 「'+b.name+'」 를 없앴습니다'); }
+    catch(e){ 알림('박스를 없애지 못했습니다 — '+(e.code||e.message),true); }
+    if(골른박스===id){골른박스='';안에있다=false;view2.innerHTML='<span class="empty">이미지를 선택하세요</span>';}
+    return;
+  }
+  try{
+    const 때=Date.now();
+    const w=writeBatch(db);
+    w.update(doc(db,...뿌리,'cartoon_boxes',id),{del:true,delAt:때});
+    든그림.forEach(x=>w.update(doc(db,...뿌리,'cartoon_refs',x.id),{del:true,delAt:때}));
+    든페이지.forEach(p=>w.update(doc(db,...뿌리,'cartoon_pages',p.id),{del:true,delAt:때}));
+    await w.commit();
+    알림('「'+b.name+'」 를 삭제함으로 옮겼습니다 · 안에 든 '+수+'개도 같이 옮겼습니다');
+  }catch(e){ 알림('삭제함으로 옮기지 못했습니다 — '+(e.code||e.message),true); }
+  if(골른박스===id){골른박스='';안에있다=false;view2.innerHTML='<span class="empty">이미지를 선택하세요</span>';}
+}
+
+/* ── 삭제함 ─────────────────────────────────────────────────────────
+   여기서 지워야 진짜 없어진다. 되살리면 있던 박스로 돌아간다. */
+function 삭제함(){
+  삭제함보는중=true; 안에있다=false; 골른박스='';
+  박스그리기(); 그리기(); 아래박스();
+  const 것들=버린것().sort((a,b)=>(b.delAt||0)-(a.delAt||0));
+  const 줄=x=>{
+    const 갈래=x.name!==undefined&&x.icon!==undefined?'박스':(x.seed!==undefined?'페이지':'그림');
+    const 이름=갈래==='박스'?x.name:(갈래==='페이지'?(x.prompt||'(빈 페이지)'):(x.name||파일id(x)));
+    return `<div class="row" data-t="${갈래}" data-id="${esc(x.id)}">
+      ${갈래==='그림'?'<img alt="" loading="lazy">':ico(갈래==='박스'?(x.icon||'square'):'file-text',20)}
+      <span class="nm2">${esc(이름)}</span><span class="kind">${갈래}</span>
+      <button data-act="back">되살리기</button>
+      <button data-act="gone" class="gone">지우기</button></div>`;
+  };
+  view2.innerHTML=`<div class="inbox trash">
+      <div class="hd2">
+        <button class="back" id="bback">${ico('arrow-left',13)}<span>나가기</span></button>
+        <h3>${ico('trash-2',16)}<span>삭제함</span>
+          <span style="color:var(--faint);font-weight:600">· ${것들.length}개</span></h3>
+      </div>
+      ${것들.map(줄).join('')}
+      ${것들.length?'<p class="note">여기서 「지우기」 를 누르면 진짜 없어집니다. 되돌릴 수 없습니다.</p>'
+                  :'<p class="note">삭제함이 비어 있습니다.</p>'}
+    </div>`;
+  것들.forEach(x=>{
+    if(x.name!==undefined&&x.icon!==undefined)return; if(x.seed!==undefined)return;
+    const el=view2.querySelector('.row[data-id="'+CSS.escape(x.id)+'"] img');
+    if(el) 그림걸기(el,x,200,()=>{});
+  });
+  view2.querySelector('#bback').onclick=()=>{
+    삭제함보는중=false; 아래박스();
+    view2.innerHTML='<span class="empty">이미지를 선택하세요</span>';
+  };
+  view2.onclick=async e=>{
+    const 단추=e.target.closest('[data-act]'); if(!단추)return;
+    const 줄el=단추.closest('[data-id]'); const id=줄el.dataset.id, 갈래=줄el.dataset.t;
+    const 칸이름=갈래==='박스'?'cartoon_boxes':(갈래==='페이지'?'cartoon_pages':'cartoon_refs');
+    try{
+      if(단추.dataset.act==='back'){
+        await setDoc(칸(칸이름,id),{del:false,delAt:0},{merge:true});
+        알림('되살렸습니다');
+      }else{
+        // 진짜로 없앤다. 올린 그림이면 저장소에서도 치운다.
+        if(갈래==='그림'){ const x=자료들.find(y=>y.id===id);
+          if(x&&올린것(x)&&x.path){ try{ await deleteObject(sref(storage,x.path)); }catch(err){} } }
+        await deleteDoc(칸(칸이름,id));
+        알림('지웠습니다');
+      }
+      삭제함();
+    }catch(err){ 알림('하지 못했습니다 — '+(err.code||err.message),true); }
   };
 }
 
@@ -678,8 +800,8 @@ function 옮기기판(fid){
   const 지금=(자료들.find(x=>x.id===fid)||{}).box||'';
   판(`<h4>어느 박스에 담을까요</h4>`
     +`<button class="chip${지금===''?' on':''}" data-to="" style="width:100%;justify-content:flex-start;margin-bottom:6px">${ico('layout-grid',14)}<span>갈래 없음</span></button>`
-    +박스들.map(b=>`<button class="chip${지금===b.id?' on':''}" data-to="${esc(b.id)}" style="width:100%;justify-content:flex-start;margin-bottom:6px">${ico(b.icon||'square',14)}<span>${esc(b.name)}</span></button>`).join('')
-    +(박스들.length?'':`<p class="note">아직 박스가 없습니다. 아래 ＋ 로 만들어 주세요.</p>`));
+    +산박스().map(b=>`<button class="chip${지금===b.id?' on':''}" data-to="${esc(b.id)}" style="width:100%;justify-content:flex-start;margin-bottom:6px">${ico(b.icon||'square',14)}<span>${esc(b.name)}</span></button>`).join('')
+    +(산박스().length?'':`<p class="note">아직 박스가 없습니다. 아래 ＋ 로 만들어 주세요.</p>`));
   sheetcard.onclick=async e=>{
     const t=e.target.closest('[data-to]'); if(!t)return;
     try{ await setDoc(칸('cartoon_refs',fid),{box:t.dataset.to},{merge:true}); 판닫기(); }
@@ -720,7 +842,8 @@ function 타일(x){
 
 function 그리기(){
   const 열린것=[...dgrid.querySelectorAll('.thumb.on')].map(e=>e.dataset.id);
-  const 볼것=골른박스?자료들.filter(x=>(x.box||'')===골른박스):자료들;
+  const 산것=자료들.filter(x=>!x.del);
+  const 볼것=골른박스?산것.filter(x=>(x.box||'')===골른박스):산것;
   dgrid.innerHTML='';
   볼것.forEach(x=>{const t=타일(x); if(열린것.includes(x.id))t.classList.add('on'); dgrid.appendChild(t)});
   const 어디=골른박스?박스이름(골른박스):'영감 자료';
@@ -735,12 +858,17 @@ async function 넣기(){
   try{
     const 때=Date.now();
     // 지금 고른 박스에 담긴다. '전체' 를 보고 있으면 갈래 없음으로 들어간다.
-    await Promise.all(아이디.map((id,i)=>setDoc(칸('cartoon_refs',id),{id,at:때+i,box:골른박스},{merge:true})));
+    const 이미=자료들.filter(x=>!x.del&&(x.box||'')===골른박스).map(파일id);
+    const 넣을것=아이디.filter(f=>!이미.includes(f));
+    await Promise.all(넣을것.map((f,i)=>{const eid='rf'+새id();
+      return setDoc(칸('cartoon_refs',eid),{id:eid,fid:f,at:때+i,box:골른박스},{merge:true});}));
     dlink.value='';
-    let 글=아이디.length+'장 넣었습니다'+(골른박스?' · '+박스이름(골른박스):'');
+    const 겹친수=아이디.length-넣을것.length;
+    let 글=넣을것.length+'장 넣었습니다'+(골른박스?' · '+박스이름(골른박스):'');
+    if(겹친수) 글+=' · '+겹친수+'개는 이 박스에 이미 있어 건너뛰었습니다';
     if(폴더) 글+=' · 폴더 '+폴더+'개는 못 읽어 건너뛰었습니다. 그림 링크를 하나씩 넣어 주세요';
     else if(모름) 글+=' · '+모름+'개는 드라이브 링크가 아니라 건너뛰었습니다';
-    알림(글, !!(폴더||모름));
+    알림(글, !!(폴더||모름||겹친수));
   }catch(e){ 알림('넣지 못했습니다 — '+(e.code||e.message),true); }
   finally{ dadd.disabled=false;dadd.textContent='넣기'; }
 }
@@ -809,7 +937,8 @@ dpick.onclick=async()=>{
         const 것들=d[google.picker.Response.DOCUMENTS]||[];
         const 때=Date.now();
         try{
-          await Promise.all(것들.map((x,i)=>setDoc(칸('cartoon_refs',x.id),{id:x.id,at:때+i,box:골른박스},{merge:true})));
+          await Promise.all(것들.map((x,i)=>{const eid='rf'+새id();
+            return setDoc(칸('cartoon_refs',eid),{id:eid,fid:x.id,at:때+i,box:골른박스},{merge:true});}));
           알림(것들.length+'장 넣었습니다'+(골른박스?' · '+박스이름(골른박스):''));
         }catch(e){ 알림('넣지 못했습니다 — '+(e.code||e.message),true); }
       }).build().setVisible(true);
