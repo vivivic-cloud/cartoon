@@ -256,6 +256,10 @@
   /* 적으신 글을 작업자에게 그대로 보내는 단추 — 한 줄을 다 쓴다 */
   .ptool.psend{flex:1 1 100%;background:var(--ink);color:#fff;border-color:var(--ink)}
   .ptool.psend:hover{background:#000;color:#fff}
+  /* 언제 보냈는지 — 안 그러면 보냈는지 몰라 또 누르신다 */
+  .psent{display:block;margin-top:6px;font-size:10px;font-weight:700;
+        color:var(--faint);text-align:right}
+  .psent:empty{display:none}
   .page .px{position:absolute;top:4px;right:4px;width:32px;height:32px;padding:0;border:0;
         border-radius:8px;background:none;color:var(--faint);font:inherit;font-size:14px;
         font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center}
@@ -413,7 +417,7 @@ const 웹열쇠='AIzaSyB9X_hzd2D3goQ7oenK53Pz805P1c7oSqs';
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-app.js";
 import { getAuth, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithPopup }
   from "https://www.gstatic.com/firebasejs/11.2.0/firebase-auth.js";
-import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, getDocs, writeBatch, arrayUnion }
+import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, getDoc, getDocs, writeBatch, arrayUnion }
   from "https://www.gstatic.com/firebasejs/11.2.0/firebase-firestore.js";
 import { getStorage, ref as sref, uploadBytes, getDownloadURL, deleteObject }
   from "https://www.gstatic.com/firebasejs/11.2.0/firebase-storage.js";
@@ -615,15 +619,38 @@ const 페이지자리=()=>document.querySelector('.next');
    페이지·박스·씨앗은 어느 페이지 이야기인지 알아보라고 꼬리에 붙인다. */
 const 지시자리='box:cartoon';
 const 지시문서=()=>칸('wt_dev', encodeURIComponent(지시자리).replace(/%/g,'~'));
-async function 지시보내기(글, 꼬리){
+// 붙는 말의 모양은 손잡이(shared/viggle.js 지시보내기)와 똑같다 — who·at(초)·sent
+const 지시확인=async 글=>{
+  const d=await getDoc(지시문서());
+  const ms=(d.exists()?d.data().msgs:null)||[];
+  return { 있나: ms.some(m=>m&&m.text===글&&m.who==='나'), 수: ms.length };
+};
+async function 지시보내기(글){
   const 몸=String(글||'').trim();
   if(!몸) throw new Error('빈 글');
+  // 손잡이는 문서를 통째로 읽어 통째로 다시 쓴다. 그러면 읽기가 어긋나는 사이에
+  // 쌓인 지시와 답한때 도장이 통째로 날아갈 수 있다. 여기서는 그 길을 쓰지 않고
+  // arrayUnion 으로 끝에 하나만 이어 붙인다 — 다른 말은 서버에서 손대지 않는다.
   await setDoc(지시문서(), {
     area: 지시자리,
-    msgs: arrayUnion({ who:'나', text: 몸+(꼬리?'\n'+꼬리:''), at: Math.floor(Date.now()/1000) }),
+    msgs: arrayUnion({ who:'나', text: 몸, at: Math.floor(Date.now()/1000), sent: true }),
     잰때: Date.now()
   }, {merge:true});
+  // 붙었는지 다시 읽어 본다. 없으면 한 번만 더 해 보고, 그래도 없으면 실패다.
+  let 본것=await 지시확인(몸);
+  if(!본것.있나){
+    await setDoc(지시문서(), {
+      area: 지시자리,
+      msgs: arrayUnion({ who:'나', text: 몸, at: Math.floor(Date.now()/1000), sent: true }),
+      잰때: Date.now()
+    }, {merge:true});
+    본것=await 지시확인(몸);
+  }
+  if(!본것.있나) throw new Error('붙었는지 확인하지 못했습니다');
+  return 본것.수;
 }
+const 시각=t=>{const d=new Date(t);
+  return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');};
 
 function 페이지그리기(어디){
   const 자리=어디||페이지자리(); if(!자리)return;
@@ -656,6 +683,7 @@ function 페이지그리기(어디){
         <button class="ptool padd">${ico('plus',13)}<span>페이지추가</span></button>
         <button class="ptool psend">${ico('send',13)}<span>메시지 보내기</span></button>
       </div>
+      <span class="psent"></span>
       <button class="px" aria-label="이 페이지 빼기">✕</button>`;
     // 불러온 것은 이 페이지에 딸린다. 올리는 길은 옆칸 「그림 올리기」와 같은 것을 쓴다.
     const 파일칸=d.querySelector('.pfile'), 불러=d.querySelector('.pget');
@@ -666,18 +694,23 @@ function 페이지그리기(어디){
     };
     d.querySelector('.padd').onclick=e=>새페이지만들기(e.currentTarget);
     // 메시지 보내기 — 적은 것을 먼저 담고, 그다음 지시함에 붙인다
-    const 보냄=d.querySelector('.psend');
+    const 보냄=d.querySelector('.psend'), 보낸표=d.querySelector('.psent');
+    if(p.보낸때) 보낸표.textContent=시각(p.보낸때)+' 보냄';
     보냄.onclick=async()=>{
       const 글=d.querySelector('.pinp').value.trim();
-      if(!글){ 알림('보낼 글이 없습니다 — 먼저 적어 주세요',true); return; }
+      if(!글){ 알림('적으신 것이 없습니다',true); return; }
       const 본래=보냄.innerHTML;
       보냄.disabled=true; 보냄.innerHTML='<span>보내는 중…</span>';
       try{
+        // 먼저 페이지에 담는다 — 보내다 끊겨도 적으신 글은 남는다. 보낸 뒤에도 지우지 않는다.
         await setDoc(칸('cartoon_pages',p.id),{prompt:글},{merge:true});
-        await 지시보내기('[cartoon · '+(i+2)+'장] '+글,
-          '— 박스: '+(박스이름(p.box)||'(없음)')+' · 페이지: '+p.id
+        await 지시보내기('[cartoon · '+(i+2)+'장 페이지] '+글
+          +'\n— 박스: '+(박스이름(p.box)||'(없음)')+' · 페이지: '+p.id
           +' · 씨앗: '+(p.seed||'(없음)')
           +(딸린것.length?' · 딸린 그림 '+딸린것.length+'장':''));
+        const 때=Date.now();
+        보낸표.textContent=시각(때)+' 보냄';
+        setDoc(칸('cartoon_pages',p.id),{보낸때:때},{merge:true}).catch(()=>{});
         알림('보냈습니다 — 작업자가 지시함에서 읽습니다');
       }catch(e){ 알림('보내지 못했습니다 — '+(e.code||e.message),true); }
       finally{ 보냄.disabled=false; 보냄.innerHTML=본래; }
