@@ -230,6 +230,21 @@
   .page .pinp{width:100%;border:0;background:none;font:inherit;font-size:13px;line-height:1.5;
         resize:vertical;min-height:64px;outline:none;color:var(--ink);display:block}
   .page .pinp::placeholder{color:var(--faint)}
+  /* 페이지 안에 딸린 그림들 */
+  .pfiles{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+  .pfiles:empty{display:none}
+  .pthumb{width:44px;height:44px;padding:0;border:1px solid var(--line);border-radius:6px;
+        overflow:hidden;background:var(--soft);cursor:pointer}
+  .pthumb img{width:100%;height:100%;object-fit:cover;display:block}
+  /* 페이지를 만드는 데 드는 것들 — 이 안에 모인다 */
+  .ptools{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+  .ptool{display:inline-flex;align-items:center;justify-content:center;gap:4px;flex:1 1 auto;
+        min-height:32px;padding:6px 8px;background:var(--soft);color:var(--muted);
+        border:1px solid var(--line);border-radius:6px;font:inherit;font-size:11px;
+        font-weight:700;cursor:pointer;white-space:nowrap;transition:all .2s}
+  .ptool:hover{background:var(--hover);color:var(--ink)}
+  .ptool:active{transform:scale(.96)}
+  .ptool[disabled]{opacity:.55;cursor:not-allowed;transform:none}
   .page .px{position:absolute;top:4px;right:4px;width:32px;height:32px;padding:0;border:0;
         border-radius:8px;background:none;color:var(--faint);font:inherit;font-size:14px;
         font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center}
@@ -562,11 +577,43 @@ function 페이지그리기(어디){
   const 씨앗키=자리.dataset.seed||'';
   const 것들=페이지들.filter(p=>p.seed===씨앗키&&!p.del).sort((a,b)=>(a.at||0)-(b.at||0));
   const 통=document.createElement('div');통.className='pages';
+  const 새페이지만들기=async 단추=>{
+    if(단추)단추.disabled=true;
+    try{
+      const id='pg'+새id();
+      await setDoc(칸('cartoon_pages',id),
+        {id,seed:씨앗키,box:골른박스,at:Date.now(),prompt:''},{merge:true});
+    }catch(e){ 알림('페이지를 만들지 못했습니다 — '+(e.code||e.message),true); }
+    finally{ if(단추)단추.disabled=false; }
+  };
   것들.forEach((p,i)=>{
+    const 딸린것=자료들.filter(x=>!x.del&&x.page===p.id).sort((a,b)=>(a.at||0)-(b.at||0));
     const d=document.createElement('div');d.className='page';
     d.innerHTML=`<span class="cnt">${i+2}장</span>
       <textarea class="pinp" placeholder="이곳을 어떻게 채울지 적어 주세요"></textarea>
+      <div class="pfiles"></div>
+      <div class="ptools">
+        <input type="file" class="pfile" accept="image/*" multiple hidden>
+        <button class="ptool pget">${ico('image',13)}<span>파일 불러오기</span></button>
+        <button class="ptool padd">${ico('plus',13)}<span>페이지추가</span></button>
+      </div>
       <button class="px" aria-label="이 페이지 빼기">✕</button>`;
+    // 불러온 것은 이 페이지에 딸린다. 올리는 길은 옆칸 「그림 올리기」와 같은 것을 쓴다.
+    const 파일칸=d.querySelector('.pfile'), 불러=d.querySelector('.pget');
+    불러.onclick=()=>파일칸.click();
+    파일칸.onchange=async()=>{
+      const 파일들=[...파일칸.files]; 파일칸.value='';
+      await 그림올리기(파일들,{page:p.id,단추:불러,본래글:'파일 불러오기'});
+    };
+    d.querySelector('.padd').onclick=e=>새페이지만들기(e.currentTarget);
+    const 담긴=d.querySelector('.pfiles');
+    딸린것.forEach(x=>{
+      const b2=document.createElement('button');b2.className='pthumb';b2.title=x.name||x.id;
+      b2.innerHTML='<img alt="" loading="lazy">';
+      그림걸기(b2.querySelector('img'),x,200,()=>{});
+      b2.onclick=()=>띄우기(x,null);
+      담긴.appendChild(b2);
+    });
     const ta=d.querySelector('.pinp'); ta.value=p.prompt||'';
     let 시계=null;
     ta.oninput=()=>{ clearTimeout(시계); 시계=setTimeout(()=>{
@@ -584,19 +631,15 @@ function 페이지그리기(어디){
     };
     통.appendChild(d);
   });
-  const 새것=document.createElement('button');
-  새것.className='page new';새것.id='pnew';
-  새것.innerHTML=`${ico('plus',14)}<span>새 페이지</span>`;
-  새것.onclick=async()=>{
-    새것.disabled=true;
-    try{
-      const id='pg'+새id();
-      await setDoc(칸('cartoon_pages',id),
-        {id,seed:씨앗키,box:골른박스,at:Date.now(),prompt:''},{merge:true});
-    }catch(e){ 알림('페이지를 만들지 못했습니다 — '+(e.code||e.message),true); }
-    finally{ 새것.disabled=false; }
-  };
-  통.appendChild(새것);
+  // 페이지추가는 이제 페이지 칸 안에 있다. 다만 한 장도 없으면 들어갈 칸이 없으니
+  // 그때만 첫 장을 만드는 칸을 하나 둔다.
+  if(!것들.length){
+    const 새것=document.createElement('button');
+    새것.className='page new';새것.id='pnew';
+    새것.innerHTML=`${ico('plus',14)}<span>새 페이지</span>`;
+    새것.onclick=()=>새페이지만들기(새것);
+    통.appendChild(새것);
+  }
   자리.innerHTML='';자리.appendChild(통);
 }
 window.카툰페이지=어디=>페이지그리기(어디);
@@ -610,7 +653,7 @@ function 박스안(){
   if(!골른박스){ 안에있다=false; return; }
   안에있다=true; 삭제함보는중=false;
   const b=박스들.find(x=>x.id===골른박스)||{};
-  const 것들=자료들.filter(x=>(x.box||'')===골른박스&&!x.del).sort((a,b2)=>(a.at||0)-(b2.at||0));
+  const 것들=자료들.filter(x=>(x.box||'')===골른박스&&!x.del&&!x.page).sort((a,b2)=>(a.at||0)-(b2.at||0));
   view2.innerHTML=`<div class="inbox">
       <div class="hd2">
         <button class="back" id="bback">${ico('arrow-left',13)}<span>나가기</span></button>
@@ -856,7 +899,7 @@ function 타일(x){
 
 function 그리기(){
   const 열린것=[...dgrid.querySelectorAll('.thumb.on')].map(e=>e.dataset.id);
-  const 산것=자료들.filter(x=>!x.del);
+  const 산것=자료들.filter(x=>!x.del&&!x.page);   // 페이지에 딸린 것은 그 페이지 안에서만 보인다
   const 볼것=골른박스?산것.filter(x=>(x.box||'')===골른박스):산것;
   dgrid.innerHTML='';
   볼것.forEach(x=>{const t=타일(x); if(열린것.includes(x.id))t.classList.add('on'); dgrid.appendChild(t)});
@@ -892,31 +935,40 @@ dadd.onclick=넣기;
    앞세운 길이다. 구글 쪽에 켜 줄 것이 하나도 없다. 집이 이미 쓰는
    파이어베이스 저장소에 그대로 올린다 (vivivic-4b7ef.firebasestorage.app).
    올린 그림은 담긴 곳 주소가 곧 그림이라 다른 기기에서도 바로 뜬다. */
-dup.onclick=()=>dfile.click();
-dfile.onchange=async()=>{
-  const 것들=[...dfile.files].filter(f=>f.type.startsWith('image/'));
-  const 뺀것=dfile.files.length-것들.length;
-  dfile.value='';                                   // 같은 그림을 또 골라도 열리게
-  if(!것들.length) return 알림(뺀것?'그림 파일이 아닙니다':'',!!뺀것);
-  dup.disabled=true;
+/* 올리는 길은 하나뿐이다. 옆칸에서 올리든 페이지 안에서 올리든 이것을 쓴다.
+   page 를 주면 그 페이지에 딸린 것이 된다. */
+async function 그림올리기(파일들,{page='',단추=null,본래글=''}={}){
+  const 것들=[...파일들].filter(f=>f.type.startsWith('image/'));
+  const 뺀것=파일들.length-것들.length;
+  if(!것들.length){ 알림(뺀것?'그림 파일이 아닙니다':'',!!뺀것); return 0; }
+  if(단추) 단추.disabled=true;
   let 된것=0;
   try{
     for(const f of 것들){
-      dup.textContent=`올리는 중… ${된것+1}/${것들.length}`;
+      if(단추) 단추.textContent=`올리는 중… ${된것+1}/${것들.length}`;
       const id='up'+새id();
       const 길='cartoon/'+id;
       const r=sref(storage,길);
       await uploadBytes(r,f,{contentType:f.type||'image/jpeg'});
       const url=await getDownloadURL(r);
-      await setDoc(칸('cartoon_refs',id),
-        {id,at:Date.now()+된것,box:골른박스,kind:'올린것',url,path:길,name:f.name},{merge:true});
+      const 것={id,at:Date.now()+된것,box:골른박스,kind:'올린것',url,path:길,name:f.name};
+      if(page) 것.page=page;                       // 어느 페이지에 딸린 것인지
+      await setDoc(칸('cartoon_refs',id),것,{merge:true});
       된것++;
     }
-    알림(된것+'장 올렸습니다'+(골른박스?' · '+박스이름(골른박스):'')
+    알림(된것+'장 올렸습니다'+(page?'':(골른박스?' · '+박스이름(골른박스):''))
       +(뺀것?' · 그림이 아닌 '+뺀것+'개는 건너뛰었습니다':''),!!뺀것);
   }catch(e){
     알림((된것?된것+'장까지 올리고 멈췄습니다 — ':'올리지 못했습니다 — ')+(e.code||e.message),true);
-  }finally{ dup.disabled=false;dup.textContent='그림 올리기'; }
+  }finally{ if(단추){ 단추.disabled=false; 단추.textContent=본래글; } }
+  return 된것;
+}
+
+dup.onclick=()=>dfile.click();
+dfile.onchange=async()=>{
+  const 파일들=[...dfile.files];
+  dfile.value='';                                   // 같은 그림을 또 골라도 열리게
+  await 그림올리기(파일들,{단추:dup,본래글:'그림 올리기'});
 };
 
 /* ── 드라이브에서 고르기 ─────────────────────────────────────────────
@@ -1022,6 +1074,7 @@ onAuthStateChanged(auth, u=>{
   onSnapshot(칸('cartoon_refs'), s=>{
     자료들=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.at||0)-(b.at||0));
     그리기();
+    페이지그리기();          // 페이지에 딸린 그림도 바로 뜨게 (안 부르면 새로고침해야 보였다)
     if(안에있다 && !view2.querySelector('img')) 박스안();
   }, e=>{ 상태('영감 자료 · 못 읽음'); 알림('불러오지 못했습니다 — '+(e.code||e.message),true); });
 });
