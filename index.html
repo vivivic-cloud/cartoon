@@ -218,6 +218,14 @@
   .stage{align-self:stretch;flex:1;display:flex;gap:16px;min-width:0;min-height:0}
   .seed{flex:1 1 50%;min-width:0;display:flex;flex-direction:column;
         align-items:center;justify-content:center}
+  /* 그림을 감싸서 ✕ 를 그림 모서리에 붙인다. 절반 줄이기는 이 감쌈에 건다. */
+  .seedwrap{position:relative;display:flex;min-width:0;min-height:0;max-width:100%;max-height:100%}
+  .seedwrap .sx{position:absolute;top:4px;right:4px;width:32px;height:32px;padding:0;border:0;
+        border-radius:8px;background:rgba(55,53,47,.55);color:#fff;font:inherit;font-size:14px;
+        font-weight:700;line-height:1;cursor:pointer;display:flex;align-items:center;
+        justify-content:center;transition:all .2s}
+  .seedwrap .sx:hover{background:rgba(55,53,47,.9)}
+  .seedwrap .sx:active{transform:scale(.9)}
   .next{flex:1 1 50%;min-width:0;display:flex;flex-direction:column;justify-content:center;
         max-height:100%;overflow:auto;padding:2px}
   /* 새 페이지 — 빈칸 하나하나가 「이곳을 어떻게 채울지」 적는 자리다.
@@ -273,7 +281,7 @@
      크게 띄운 그림만 넓은 화면에서 절반으로 줄인다. 폰은 그대로. */
   /* 절반으로 줄이는 것은 크게 띄운 씨앗 그림에만 걸어야 한다. main img 로 걸었더니
      박스 안 그림(127칸에 63)과 페이지에 딸린 그림(44칸에 21)까지 반쪽이 되었다. */
-  @media (min-width:641px){ .seed img{max-width:50%;max-height:50%} }
+  @media (min-width:641px){ .seedwrap{max-width:50%;max-height:50%} }
 </style>
 </head>
 <body>
@@ -329,10 +337,21 @@ window.카툰비우기=()=>{cur=null};
 
 /* 씨앗 그림은 왼쪽, 오른쪽은 다음 장이 들어올 빈 자리.
    자리만 잡아 둔 것이라 아무 기능도 넣지 않았다. 폰에서는 빈 자리를 숨긴다. */
-function 무대(img,꼬리,씨앗키){
+function 무대(img,꼬리,씨앗키,지우기){
   const s=document.createElement('div');s.className='stage';
   const 씨앗=document.createElement('div');씨앗.className='seed';
-  img.style.minHeight='0';씨앗.appendChild(img);
+  img.style.minHeight='0';
+  const 감쌈=document.createElement('div');감쌈.className='seedwrap';
+  감쌈.appendChild(img);
+  // 크게 보다가 바로 뺄 수 있게. 톡 누르는 것만 받는다 — 길게 누르기는 손잡이 것이다.
+  if(지우기){
+    const x=document.createElement('button');
+    x.className='sx';x.type='button';x.textContent='✕';
+    x.setAttribute('aria-label','이 그림 삭제함으로 옮기기');
+    x.onclick=e=>{e.stopPropagation();지우기();};
+    감쌈.appendChild(x);
+  }
+  씨앗.appendChild(감쌈);
   if(꼬리)씨앗.appendChild(꼬리);
   const 다음=document.createElement('div');다음.className='next';
   다음.dataset.seed=씨앗키||'';
@@ -507,6 +526,14 @@ function 그림걸기(img,x,폭,실패했을때){
   img.src=그림주소(파일id(x),폭);
 }
 
+/* 무대에 지금 뜬 그림. 그것이 삭제함으로 가면 무대를 비운다. */
+let 무대씨앗=null;
+function 무대비우기(){
+  무대씨앗=null;
+  if(골른박스) 박스안();
+  else { view2.onclick=null; view2.innerHTML='<span class="empty">이미지를 선택하세요</span>'; }
+}
+
 /* 큰 자리에 띄운다. 원래 그림 보기와 같은 자리를 쓴다. */
 function 띄우기(x,타일){
   window.카툰비우기 && window.카툰비우기();
@@ -518,7 +545,16 @@ function 띄우기(x,타일){
   a.className='open';a.href=올린것(x)?x.url:원본주소(파일id(x));
   a.target='_blank';a.rel='noopener noreferrer';
   a.textContent=올린것(x)?'원본 크기로 열기':'드라이브에서 열기';
-  const s=window.카툰무대(img,a,'ref:'+x.id);
+  무대씨앗=x.id;
+  // 목록 타일의 ✕ 와 똑같이 — 삭제함으로만 보낸다. 진짜 지우기는 삭제함에서만 한다.
+  const 씨앗지우기=async()=>{
+    try{
+      await setDoc(칸('cartoon_refs',x.id),{del:true,delAt:Date.now()},{merge:true});
+      알림('삭제함으로 옮겼습니다');
+      무대비우기();
+    }catch(e){ 알림('옮기지 못했습니다 — '+(e.code||e.message),true); }
+  };
+  const s=window.카툰무대(img,a,'ref:'+x.id,씨앗지우기);
   그림걸기(img,x,1600,()=>{img.remove();
     const p=document.createElement('p');p.className='note';
     p.textContent=올린것(x)?'이 그림을 불러오지 못했습니다'
@@ -651,7 +687,7 @@ window.카툰페이지=어디=>페이지그리기(어디);
    그 중 하나를 누르면 그것이 씨앗이 되어 무대로 넘어간다. */
 let 안에있다=false;
 function 박스안(){
-  view2.onclick=null;
+  view2.onclick=null; 무대씨앗=null;
   if(!골른박스){ 안에있다=false; return; }
   안에있다=true; 삭제함보는중=false;
   const b=박스들.find(x=>x.id===골른박스)||{};
@@ -738,7 +774,7 @@ async function 박스지우기(id){
 /* ── 삭제함 ─────────────────────────────────────────────────────────
    여기서 지워야 진짜 없어진다. 되살리면 있던 박스로 돌아간다. */
 function 삭제함(){
-  삭제함보는중=true; 안에있다=false; 골른박스='';
+  삭제함보는중=true; 안에있다=false; 골른박스=''; 무대씨앗=null;
   박스그리기(); 그리기(); 아래박스();
   const 것들=버린것().sort((a,b)=>(b.delAt||0)-(a.delAt||0));
   const 줄=x=>{
@@ -1077,7 +1113,11 @@ onAuthStateChanged(auth, u=>{
     자료들=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.at||0)-(b.at||0));
     그리기();
     페이지그리기();          // 페이지에 딸린 그림도 바로 뜨게 (안 부르면 새로고침해야 보였다)
-    if(안에있다 && !view2.querySelector('img')) 박스안();
+    // 무대에 뜬 그림이 (다른 기기에서든) 삭제함으로 갔으면 무대를 비운다
+    if(무대씨앗){ const 그것=자료들.find(y=>y.id===무대씨앗); if(!그것||그것.del) 무대비우기(); }
+    // 무대(.stage)를 보고 있을 때만 건드리지 않는다. 'img 가 있으면' 으로 재면
+    // 박스 안 그림 자체가 img 라서 박스 안이 새로 안 그려지고 옛것이 남았다.
+    if(안에있다 && !view2.querySelector('.stage')) 박스안();
   }, e=>{ 상태('영감 자료 · 못 읽음'); 알림('불러오지 못했습니다 — '+(e.code||e.message),true); });
 });
 </script>
