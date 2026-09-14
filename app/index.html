@@ -103,11 +103,14 @@
   .fld{width:100%;border:1px solid var(--line);border-radius:6px;padding:10px 12px;
     font:inherit;font-size:16px;background:#fff;margin-bottom:10px}
   .fld:focus{outline:none;border-color:var(--ink)}
-  .icogrid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-top:6px;
-    max-height:40vh;overflow-y:auto;padding-right:2px}
-  .icogrid button{aspect-ratio:1;border:1px solid var(--line);background:#fff;border-radius:8px;
-    display:grid;place-items:center;cursor:pointer;color:var(--ink)}
-  .icogrid button.on{border-color:var(--ink);background:var(--soft2)}
+  /* 아이콘 칸은 잘게. 테두리를 없애고 틈을 줄여 한 눈에 많이 들어오게 한다.
+     칸이 좁아지는 만큼 고른 것은 먹빛으로 꽉 채워 멀리서도 보이게 했다. */
+  .icogrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(30px,1fr));gap:3px;
+    margin-top:6px;max-height:40vh;overflow-y:auto;padding-right:2px}
+  .icogrid button{aspect-ratio:1;border:0;background:none;border-radius:4px;
+    display:grid;place-items:center;cursor:pointer;color:var(--ink);padding:0}
+  .icogrid button:hover{background:var(--soft2)}
+  .icogrid button.on{background:var(--ink);color:#fff}
   .icohead{grid-column:1/-1;margin:8px 0 0;font-size:11px;font-weight:800;color:var(--muted)}
   .icohead:first-child{margin-top:0}
   .danger{background:#fff;color:#dc2626;border:1px solid var(--line)}
@@ -431,7 +434,7 @@ function 박스판(b){
     <button class="btn" id="save" style="margin-top:8px">${새것?'만들기':'저장'}</button>`);
 
   const 있는것=n=>!!((window.lucide||{}).icons||{})[toPascal(n)];
-  const 한칸=n=>`<button data-ic="${n}" class="${n===icon?'on':''}">${ico(n,18)}</button>`;
+  const 한칸=n=>`<button data-ic="${n}" class="${n===icon?'on':''}" title="${n}">${ico(n,14)}</button>`;
   const 아이콘그리기=()=>{
     const s=$('iq').value.trim().toLowerCase(), L=(window.lucide||{}).icons;
     if(!L){$('ig').innerHTML='<p class="note" style="grid-column:1/-1">아이콘을 받지 못했습니다 — 이름만 씁니다</p>';return}
