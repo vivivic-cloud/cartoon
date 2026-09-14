@@ -253,6 +253,9 @@
   .ptool:hover{background:var(--hover);color:var(--ink)}
   .ptool:active{transform:scale(.96)}
   .ptool[disabled]{opacity:.55;cursor:not-allowed;transform:none}
+  /* 적으신 글을 작업자에게 그대로 보내는 단추 — 한 줄을 다 쓴다 */
+  .ptool.psend{flex:1 1 100%;background:var(--ink);color:#fff;border-color:var(--ink)}
+  .ptool.psend:hover{background:#000;color:#fff}
   .page .px{position:absolute;top:4px;right:4px;width:32px;height:32px;padding:0;border:0;
         border-radius:8px;background:none;color:var(--faint);font:inherit;font-size:14px;
         font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center}
@@ -410,7 +413,7 @@ const 웹열쇠='AIzaSyB9X_hzd2D3goQ7oenK53Pz805P1c7oSqs';
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-app.js";
 import { getAuth, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithPopup }
   from "https://www.gstatic.com/firebasejs/11.2.0/firebase-auth.js";
-import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, getDocs, writeBatch }
+import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, getDocs, writeBatch, arrayUnion }
   from "https://www.gstatic.com/firebasejs/11.2.0/firebase-firestore.js";
 import { getStorage, ref as sref, uploadBytes, getDownloadURL, deleteObject }
   from "https://www.gstatic.com/firebasejs/11.2.0/firebase-storage.js";
@@ -605,6 +608,23 @@ const 새id=()=>'c'+Math.random().toString(36).slice(2,8)+Date.now().toString(36
 let 페이지들=[];
 const 페이지자리=()=>document.querySelector('.next');
 
+/* ── 적으신 글을 작업자에게 보낸다 ───────────────────────────────────
+   지시함(작업대)의 box:cartoon 자리에 사장님 말(who:'나')로 한 줄 붙인다.
+   붙는 칸은 tools/답하기.py 가 읽고 쓰는 그 칸과 똑같다 —
+   문서 이름은 자리 이름을 encodeURIComponent 한 뒤 % 를 ~ 로 바꾼 것이다.
+   페이지·박스·씨앗은 어느 페이지 이야기인지 알아보라고 꼬리에 붙인다. */
+const 지시자리='box:cartoon';
+const 지시문서=()=>칸('wt_dev', encodeURIComponent(지시자리).replace(/%/g,'~'));
+async function 지시보내기(글, 꼬리){
+  const 몸=String(글||'').trim();
+  if(!몸) throw new Error('빈 글');
+  await setDoc(지시문서(), {
+    area: 지시자리,
+    msgs: arrayUnion({ who:'나', text: 몸+(꼬리?'\n'+꼬리:''), at: Math.floor(Date.now()/1000) }),
+    잰때: Date.now()
+  }, {merge:true});
+}
+
 function 페이지그리기(어디){
   const 자리=어디||페이지자리(); if(!자리)return;
   // 적는 중이면 다시 그리지 않는다. 그리면 쓰던 글이 날아간다.
@@ -634,6 +654,7 @@ function 페이지그리기(어디){
         <input type="file" class="pfile" accept="image/*" multiple hidden>
         <button class="ptool pget">${ico('image',13)}<span>파일 불러오기</span></button>
         <button class="ptool padd">${ico('plus',13)}<span>페이지추가</span></button>
+        <button class="ptool psend">${ico('send',13)}<span>메시지 보내기</span></button>
       </div>
       <button class="px" aria-label="이 페이지 빼기">✕</button>`;
     // 불러온 것은 이 페이지에 딸린다. 올리는 길은 옆칸 「그림 올리기」와 같은 것을 쓴다.
@@ -644,6 +665,23 @@ function 페이지그리기(어디){
       await 그림올리기(파일들,{page:p.id,단추:불러,본래글:'파일 불러오기'});
     };
     d.querySelector('.padd').onclick=e=>새페이지만들기(e.currentTarget);
+    // 메시지 보내기 — 적은 것을 먼저 담고, 그다음 지시함에 붙인다
+    const 보냄=d.querySelector('.psend');
+    보냄.onclick=async()=>{
+      const 글=d.querySelector('.pinp').value.trim();
+      if(!글){ 알림('보낼 글이 없습니다 — 먼저 적어 주세요',true); return; }
+      const 본래=보냄.innerHTML;
+      보냄.disabled=true; 보냄.innerHTML='<span>보내는 중…</span>';
+      try{
+        await setDoc(칸('cartoon_pages',p.id),{prompt:글},{merge:true});
+        await 지시보내기('[cartoon · '+(i+2)+'장] '+글,
+          '— 박스: '+(박스이름(p.box)||'(없음)')+' · 페이지: '+p.id
+          +' · 씨앗: '+(p.seed||'(없음)')
+          +(딸린것.length?' · 딸린 그림 '+딸린것.length+'장':''));
+        알림('보냈습니다 — 작업자가 지시함에서 읽습니다');
+      }catch(e){ 알림('보내지 못했습니다 — '+(e.code||e.message),true); }
+      finally{ 보냄.disabled=false; 보냄.innerHTML=본래; }
+    };
     const 담긴=d.querySelector('.pfiles');
     딸린것.forEach(x=>{
       const b2=document.createElement('button');b2.className='pthumb';b2.title=x.name||x.id;
