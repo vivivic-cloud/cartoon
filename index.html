@@ -576,9 +576,11 @@ function 페이지그리기(어디){
     ta.onblur=()=>{ clearTimeout(시계);
       setDoc(칸('cartoon_pages',p.id),{prompt:ta.value},{merge:true}).catch(()=>{});
       if(자리.dataset.밀림) 페이지그리기(자리); };
+    // 적으신 글이 든 자리다. 여기서 없애지 않고 삭제함으로 보낸다.
     d.querySelector('.px').onclick=async()=>{
-      try{ await deleteDoc(칸('cartoon_pages',p.id)); }
-      catch(e){ 알림('페이지를 빼지 못했습니다 — '+(e.code||e.message),true); }
+      try{ await setDoc(칸('cartoon_pages',p.id),{del:true,delAt:Date.now()},{merge:true});
+           알림('페이지를 삭제함으로 옮겼습니다'); }
+      catch(e){ 알림('페이지를 옮기지 못했습니다 — '+(e.code||e.message),true); }
     };
     통.appendChild(d);
   });
@@ -728,8 +730,24 @@ function 삭제함(){
     const 칸이름=갈래==='박스'?'cartoon_boxes':(갈래==='페이지'?'cartoon_pages':'cartoon_refs');
     try{
       if(단추.dataset.act==='back'){
-        await setDoc(칸(칸이름,id),{del:false,delAt:0},{merge:true});
-        알림('되살렸습니다');
+        // 박스를 되살리면 그때 같이 옮겨진 그림·페이지도 함께 돌아온다.
+        // 같은 때(delAt)에 옮겨진 것만 골라 되살린다 — 따로 버린 것까지 딸려오지 않게.
+        const 박스=박스들.find(x=>x.id===id);
+        if(갈래==='박스' && 박스){
+          const 때=박스.delAt||0;
+          const 같이=[...자료들.filter(x=>x.del&&(x.box||'')===id&&(x.delAt||0)===때)
+                       .map(x=>['cartoon_refs',x.id]),
+                     ...페이지들.filter(pg=>pg.del&&(pg.box||'')===id&&(pg.delAt||0)===때)
+                       .map(pg=>['cartoon_pages',pg.id])];
+          const w=writeBatch(db);
+          w.update(doc(db,...뿌리,'cartoon_boxes',id),{del:false,delAt:0});
+          같이.forEach(([c,i])=>w.update(doc(db,...뿌리,c,i),{del:false,delAt:0}));
+          await w.commit();
+          알림('박스를 되살렸습니다'+(같이.length?' · 안에 든 '+같이.length+'개도 같이':''));
+        }else{
+          await setDoc(칸(칸이름,id),{del:false,delAt:0},{merge:true});
+          알림('되살렸습니다');
+        }
       }else{
         // 진짜로 없앤다. 올린 그림이면 저장소에서도 치운다.
         if(갈래==='그림'){ const x=자료들.find(y=>y.id===id);
@@ -783,17 +801,11 @@ function 박스판(b){
       골른박스=id; 판닫기();
     }catch(e){ 알림('박스를 만들지 못했습니다 — '+(e.code||e.message),true); 판닫기(); }
   };
+  // 지우는 길은 하나만 둔다. 아래 줄 ✕ 와 똑같이 박스지우기() 를 부른다 —
+  // 길이 둘이면 어긋나서, 여기서 지운 박스의 페이지가 미아가 되었다.
   if(!새것) $('del').onclick=async()=>{
-    try{
-      // 담겼던 그림은 지우지 않는다. 갈래 없음으로 되돌릴 뿐이다.
-      const s=await getDocs(칸('cartoon_refs'));
-      const w=writeBatch(db); let n=0;
-      s.docs.forEach(d=>{ if((d.data()||{}).box===b.id){ w.update(d.ref,{box:''}); n++; } });
-      if(n) await w.commit();
-      await deleteDoc(칸('cartoon_boxes',b.id));
-      골른박스=''; 판닫기();
-      알림('박스를 지웠습니다 · 담겼던 '+n+'장은 갈래 없음으로 옮겼습니다 (드라이브 파일은 그대로입니다)');
-    }catch(e){ 알림('박스를 지우지 못했습니다 — '+(e.code||e.message),true); 판닫기(); }
+    판닫기();
+    await 박스지우기(b.id);
   };
 }
 
@@ -831,13 +843,13 @@ function 타일(x){
     d.appendChild(s);
   });
   d.querySelector('.pick').onclick=()=>띄우기(x,d);
+  // 그림 한 장도 '내용' 이다. 여기서 없애지 않고 삭제함으로 보낸다.
+  // 저장통 파일은 삭제함에서 '지우기' 를 누를 때만 치운다. 드라이브 원본은 언제도 안 건드린다.
   d.querySelector('.x').onclick=async e=>{
     e.stopPropagation();
-    try{
-      // 올린 그림은 우리 것이라 통에서도 치운다. 드라이브 것은 목록에서만 뺀다.
-      if(내것&&x.path){ try{ await deleteObject(sref(storage,x.path)); }catch(err){} }
-      await deleteDoc(칸('cartoon_refs',id));
-    }catch(err){ 알림('빼지 못했습니다 — '+(err.code||err.message),true); }
+    try{ await setDoc(칸('cartoon_refs',id),{del:true,delAt:Date.now()},{merge:true});
+         알림('삭제함으로 옮겼습니다'); }
+    catch(err){ 알림('옮기지 못했습니다 — '+(err.code||err.message),true); }
   };
   return d;
 }
