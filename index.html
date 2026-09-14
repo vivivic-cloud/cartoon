@@ -173,6 +173,17 @@
   .bcard.new{border-style:dashed;color:var(--faint)}
   .bcard.new:hover{color:var(--ink)}
 
+  /* 무대 — 씨앗 그림은 왼쪽, 오른쪽은 다음 장이 들어올 자리.
+     자리만 잡아 둔 것이고 아무 기능도 없다. 반반(1:1)으로 나눴다. */
+  .stage{align-self:stretch;flex:1;display:flex;gap:16px;min-width:0;min-height:0}
+  .seed{flex:1 1 50%;min-width:0;display:flex;flex-direction:column;
+        align-items:center;justify-content:center}
+  .next{flex:1 1 50%;min-width:0;border:1px dashed var(--line2);border-radius:10px;
+        display:flex;align-items:center;justify-content:center;padding:12px;text-align:center;
+        color:var(--faint);font-size:11px;font-weight:700;line-height:1.5}
+  /* 폰은 좁아서 나란히 두면 둘 다 못 본다. 폰에서는 씨앗 그림만 보인다. */
+  @media (max-width:640px){ .next{display:none} }
+
   /* 폰(375px) — 옆으로 나란히 두면 그림 자리가 115px 밖에 안 남는다. 위아래로 쌓는다. */
   @media (max-width:640px){
     .wrap{flex-direction:column}
@@ -235,10 +246,25 @@ let cur=null,prev='';
 // 드라이브 그림을 띄웠을 때 이 칸을 비운다. 안 비우면 폴더 목록이 바뀌는 순간
 // 아래 load() 가 먼저 보던 폴더 그림을 도로 띄워 버린다.
 window.카툰비우기=()=>{cur=null};
+
+/* 씨앗 그림은 왼쪽, 오른쪽은 다음 장이 들어올 빈 자리.
+   자리만 잡아 둔 것이라 아무 기능도 넣지 않았다. 폰에서는 빈 자리를 숨긴다. */
+function 무대(img,꼬리){
+  const s=document.createElement('div');s.className='stage';
+  const 씨앗=document.createElement('div');씨앗.className='seed';
+  img.style.minHeight='0';씨앗.appendChild(img);
+  if(꼬리)씨앗.appendChild(꼬리);
+  const 다음=document.createElement('div');다음.className='next';
+  다음.textContent='다음 장이 들어올 자리';
+  s.appendChild(씨앗);s.appendChild(다음);
+  return s;
+}
+window.카툰무대=무대;
 function show(f){
   cur=f;
   view.innerHTML='';
-  const img=new Image();img.src=encodeURIComponent(f);img.alt=f;view.appendChild(img);
+  const img=new Image();img.src=encodeURIComponent(f);img.alt=f;
+  view.appendChild(무대(img));
   [...list.children].forEach(b=>b.classList.toggle('on',b.dataset.f===f));
   const g=document.getElementById('dgrid');
   if(g)[...g.children].forEach(b=>b.classList.remove('on'));
@@ -399,20 +425,19 @@ function 그림걸기(img,x,폭,실패했을때){
 function 띄우기(x,타일){
   window.카툰비우기 && window.카툰비우기();
   view2.innerHTML='';
-  const 통=document.createElement('div');
-  통.style.cssText='display:flex;flex-direction:column;align-items:center;max-width:100%;max-height:100%;min-height:0';
-  const img=new Image();img.alt=x.name||x.id;img.style.minHeight='0';통.appendChild(img);
-  그림걸기(img,x,1600,()=>{img.remove();
-    const p=document.createElement('p');p.className='note';
-    p.textContent=올린것(x)?'이 그림을 불러오지 못했습니다'
-      :'이 그림을 불러오지 못했습니다 — 링크 공개가 아니면 드라이브에서 「링크가 있는 모든 사용자」로 바꿔 주세요';
-    통.insertBefore(p,통.firstChild);});
+  const img=new Image();img.alt=x.name||x.id;
   // 틀(iframe) 안에 넣지 않는다 — 원본은 새 창으로 연다. 집 규칙이다.
   const a=document.createElement('a');
   a.className='open';a.href=올린것(x)?x.url:원본주소(x.id);
   a.target='_blank';a.rel='noopener noreferrer';
-  a.textContent=올린것(x)?'원본 크기로 열기':'드라이브에서 열기';통.appendChild(a);
-  view2.appendChild(통);
+  a.textContent=올린것(x)?'원본 크기로 열기':'드라이브에서 열기';
+  const s=window.카툰무대(img,a);
+  그림걸기(img,x,1600,()=>{img.remove();
+    const p=document.createElement('p');p.className='note';
+    p.textContent=올린것(x)?'이 그림을 불러오지 못했습니다'
+      :'이 그림을 불러오지 못했습니다 — 링크 공개가 아니면 드라이브에서 「링크가 있는 모든 사용자」로 바꿔 주세요';
+    s.querySelector('.seed').insertBefore(p,s.querySelector('.seed').firstChild);});
+  view2.appendChild(s);
   [...list2.children].forEach(b=>b.classList.remove('on'));
   [...dgrid.children].forEach(b=>b.classList.toggle('on',b===타일));
 }
