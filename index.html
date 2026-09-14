@@ -155,6 +155,24 @@
         text-decoration:underline}
   .open:hover{color:var(--ink)}
 
+  /* 가운데 빈 자리 — 아무것도 안 골랐을 때 박스를 여기 펼친다.
+     ＋ 칸은 작업대의 새 박스처럼 점선으로 둔다. 빛깔·모서리는 집 것 그대로. */
+  .bhome{width:100%;max-height:100%;overflow:auto}
+  /* 칸이 왼쪽부터 차므로 머리글도 왼쪽에 맞춘다 */
+  .bhome h3{margin:0 0 10px;font-size:11px;font-weight:700;letter-spacing:.06em;
+    color:var(--muted);text-transform:uppercase;text-align:left}
+  .bgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:10px}
+  .bcard{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
+    min-height:96px;padding:12px 8px;background:#fff;border:1px solid var(--line);
+    border-radius:10px;cursor:pointer;font:inherit;font-size:13px;font-weight:700;
+    color:var(--ink);transition:all .2s}
+  .bcard:hover{background:var(--hover);border-color:var(--faint)}
+  .bcard:active{transform:scale(.97)}
+  .bcard.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .bcard span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .bcard.new{border-style:dashed;color:var(--faint)}
+  .bcard.new:hover{color:var(--ink)}
+
   /* 폰(375px) — 옆으로 나란히 두면 그림 자리가 115px 밖에 안 남는다. 위아래로 쌓는다. */
   @media (max-width:640px){
     .wrap{flex-direction:column}
@@ -421,11 +439,35 @@ dboxes.onclick=e=>{
   const t=e.target.closest('[data-box]'); if(!t) return;
   const 키=t.dataset.box;
   if(키 && 키===골른박스) return 박스판(박스들.find(b=>b.id===키));  // 고른 것을 또 누르면 박스설정
-  골른박스=키; 박스그리기(); 그리기();
+  골른박스=키; 박스그리기(); 그리기(); 가운데박스();
 };
 fab.onclick=()=>박스판(null);
 
 const 새id=()=>'c'+Math.random().toString(36).slice(2,8)+Date.now().toString(36).slice(-4);
+
+/* ── 가운데 빈 자리에 박스를 펼친다 ─────────────────────────────────
+   아무 그림도 안 골랐을 때만 보인다. 그림을 고르면 그 그림이 이 자리를 쓴다.
+   옆줄 칩(#dboxes)과 떠 있는 ＋(#fab)는 그대로 둔다 — 여기가 하나 더 생긴 것이다. */
+let 박스읽었다=false;
+function 가운데박스(){
+  if(view2.querySelector('img')) return;          // 그림을 보고 있으면 건드리지 않는다
+  const 칸=(키,이름,아이콘,켬)=>
+    `<button class="bcard${켬?' on':''}" data-box="${esc(키)}">${ico(아이콘,22)}<span>${esc(이름)}</span></button>`;
+  view2.innerHTML=`<div class="bhome">
+      <h3>박스</h3>
+      <div class="bgrid">
+        ${박스들.map(b=>칸(b.id,b.name,b.icon||'square',골른박스===b.id)).join('')}
+        <button class="bcard new" id="bnew">${ico('plus',22)}<span>새 박스</span></button>
+      </div>
+      ${박스읽었다&&!박스들.length
+        ?'<p class="note" style="text-align:center">아직 박스가 없습니다. ＋ 로 만들어 주세요.</p>':''}
+    </div>`;
+  view2.querySelector('.bgrid').onclick=e=>{
+    if(e.target.closest('#bnew')) return 박스판(null);
+    const t=e.target.closest('[data-box]'); if(!t)return;
+    골른박스=t.dataset.box; 박스그리기(); 그리기(); 가운데박스();
+  };
+}
 
 function 박스판(b){
   const 새것=!b, cur=b||{name:'',icon:'square'};
@@ -670,7 +712,7 @@ async function 켜졌나(){
 
 /* ── 익명으로 들어가고, 담긴 것을 따라온다 (집이 하는 그대로) ───────── */
 fab.innerHTML=ico('plus',26)||'＋';
-박스그리기();                       // 파이어베이스가 닿기 전에도 칩 줄은 보인다
+박스그리기(); 가운데박스();          // 파이어베이스가 닿기 전에도 칩 줄과 가운데는 보인다
 상태('영감 자료 · 여는 중');
 onAuthStateChanged(auth, u=>{
   if(!u) return signInAnonymously(auth).catch(e=>{
@@ -678,8 +720,9 @@ onAuthStateChanged(auth, u=>{
   // 다른 기기에서 넣거나 박스를 만들어도 따라온다
   onSnapshot(칸('cartoon_boxes'), s=>{
     박스들=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.at||0)-(b.at||0));
+    박스읽었다=true;
     if(골른박스 && !박스들.some(b=>b.id===골른박스)) 골른박스='';   // 남이 지운 박스를 보고 있었으면 전체로
-    박스그리기(); 그리기();
+    박스그리기(); 그리기(); 가운데박스();      // 새로 만든 박스가 새로고침 없이 가운데에도 뜬다
   }, e=>{ 알림('박스를 불러오지 못했습니다 — '+(e.code||e.message),true); });
   onSnapshot(칸('cartoon_refs'), s=>{
     자료들=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.at||0)-(b.at||0));
