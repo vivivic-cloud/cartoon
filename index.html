@@ -162,6 +162,8 @@
     main{padding:16px;min-height:38vh}
   }
   @media (min-width:1024px){ #dgrid{grid-template-columns:repeat(3,1fr)} }
+  /* 노트북에서 그림이 너무 컸다. 넓은 화면에서만 절반으로 줄인다. 폰은 그대로. */
+  @media (min-width:641px){ main img{max-width:50%;max-height:50%} }
 </style>
 </head>
 <body>
